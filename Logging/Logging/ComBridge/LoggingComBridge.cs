@@ -10,7 +10,7 @@ namespace MyCompany.Logging.ComBridge
     [ComVisible(true)]
     [Guid("F9E8D7C6-B5A4-4b3c-2a1b-9876543210FE")]
     [ClassInterface(ClassInterfaceType.None)]
-    [ProgId("MyCompany.Logging.ComBridge")]
+    [ProgId("MyCompany.Logging.ComBridge.LoggingComBridge")]
     public class LoggingComBridge : ILoggingComBridge
     {
         public LoggingComBridge()
