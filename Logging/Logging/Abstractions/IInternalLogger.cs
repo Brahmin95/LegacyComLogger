@@ -8,7 +8,6 @@ namespace MyCompany.Logging.Abstractions
     /// </summary>
     public interface IInternalLogger
     {
-        // Add all relevant log levels
         void Trace(string message, Exception exception = null);
         void Debug(string message, Exception exception = null);
         void Info(string message, Exception exception = null);

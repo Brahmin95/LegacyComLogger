@@ -1,5 +1,5 @@
 ﻿using Microsoft.CSharp.RuntimeBinder;
-using MyCompany.Logging.Abstractions; // The ONLY framework 'using' statement needed at the top level.
+using MyCompany.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -13,53 +13,17 @@ namespace MyCompany.Logging.ComBridge
     [ProgId("MyCompany.Logging.ComBridge")]
     public class LoggingComBridge : ILoggingComBridge
     {
-        private readonly Abstractions.ILogger _logger;
-
         public LoggingComBridge()
         {
-            // This is the correct, resilient initialization logic.
-            EnsureLogManagerInitialized();
-
-            // Now it is safe to get our logger instance.
-            _logger = LogManager.GetLogger("Vb6ComBridge");
-        }
-
-        private void EnsureLogManagerInitialized()
-        {
-            // 1. Check the public property on the abstract LogManager.
-            if (LogManager.IsInitialized) return;
-
-            try
+            // The constructor is now incredibly simple, clean, and consistent.
+            if (!LogManager.IsInitialized)
             {
-                // These are the "magic strings" that define the runtime contract.
-                const string providerAssembly = "MyCompany.Logging.NLogProvider";
-                const string factoryTypeFullName = "MyCompany.Logging.NLogProvider.NLogLoggerFactory";
-
-                // 2. Load the provider assembly from the application's directory at runtime.
-                var assembly = Assembly.Load(providerAssembly);
-
-                // 3. Get the factory type from the loaded assembly.
-                var type = assembly.GetType(factoryTypeFullName);
-                if (type == null) throw new TypeLoadException($"Cannot find type '{factoryTypeFullName}' in assembly '{providerAssembly}'.");
-
-                // 4. Create an instance of the factory. Crucially, we pass "VB6" to its constructor.
-                //    This tells the factory to run the VB6-specific context initialization.
-                var factory = (ILoggerFactory)Activator.CreateInstance(type, "VB6");
-
-                // 5. Initialize the static LogManager with our newly created factory.
-                LogManager.Initialize(factory);
-            }
-            catch (Exception ex)
-            {
-                // If anything fails (DLL not found, type renamed, etc.), the app MUST NOT CRASH.
-                // Logging will simply fall back to the NullLogger.
-                // We can write to the system's debug trace as a last resort.
-                System.Diagnostics.Trace.WriteLine($"CRITICAL: Logging framework initialization failed via reflection. {ex.Message}");
+                // It uses the same pattern as the .NET startup, specifying the provider
+                // assembly and the correct environment type.
+                LogManager.Initialize("MyCompany.Logging.NLogProvider", ApplicationEnvironment.Vb6);
             }
         }
 
-        // All other helper methods and logging method implementations are now correct
-        // because they use the `_logger` field, which is guaranteed to be initialized.
         public string CreateTransactionId() => Guid.NewGuid().ToString("N");
 
         public object CreateProperties()
@@ -67,7 +31,7 @@ namespace MyCompany.Logging.ComBridge
             try { return Activator.CreateInstance(Type.GetTypeFromProgID("Scripting.Dictionary")); }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.WriteLine($"ERROR: Failed to create Scripting.Dictionary. {ex.Message}");
+                LogManager.InternalLogger.Error("Failed to create Scripting.Dictionary", ex);
                 return null;
             }
         }
@@ -75,36 +39,43 @@ namespace MyCompany.Logging.ComBridge
         public object CreatePropertiesWithTransactionId()
         {
             dynamic props = CreateProperties();
-            if (props != null)
-            {
-                // FIXED: Use the ECS key 'transaction.id'
-                props.Add("transaction.id", CreateTransactionId());
-            }
+            if (props != null) { props.Add("transaction.id", CreateTransactionId()); }
             return props;
         }
 
-        public void Trace(string cf, string mn, string m, object p) => Log("Trace", cf, mn, m, null, p);
-        public void Debug(string cf, string mn, string m, object p) => Log("Debug", cf, mn, m, null, p);
-        public void Info(string cf, string mn, string m, object p) => Log("Info", cf, mn, m, null, p);
-        public void Warn(string cf, string mn, string m, object p) => Log("Warn", cf, mn, m, null, p);
-        public void Error(string cf, string mn, string m, string ed, object p) => Log("Error", cf, mn, m, ed, p);
-        public void Fatal(string cf, string mn, string m, string ed, object p) => Log("Fatal", cf, mn, m, ed, p);
+        // --- ILoggingComBridge Method Implementations ---
+        public void Trace(string codeFile, string methodName, string message, [Optional] object properties) => Log("Trace", codeFile, methodName, message, null, properties);
+        public void Debug(string codeFile, string methodName, string message, [Optional] object properties) => Log("Debug", codeFile, methodName, message, null, properties);
+        public void Info(string codeFile, string methodName, string message, [Optional] object properties) => Log("Info", codeFile, methodName, message, null, properties);
+        public void Warn(string codeFile, string methodName, string message, [Optional] object properties) => Log("Warn", codeFile, methodName, message, null, properties);
+        public void Error(string codeFile, string methodName, string message, [Optional] string errorDetails, [Optional] object properties) => Log("Error", codeFile, methodName, message, errorDetails, properties);
+        public void Fatal(string codeFile, string methodName, string message, [Optional] string errorDetails, [Optional] object properties) => Log("Fatal", codeFile, methodName, message, errorDetails, properties);
+
+
+        // --- Private Implementation Details ---
 
         private void Log(string level, string codeFile, string methodName, string message, string errorDetails, object properties)
         {
+            string appName = LogManager.GetAbstractedContextProperty("service.name") as string ?? "Vb6App";
+            string loggerName = $"{appName}.{codeFile}";
+            var logger = LogManager.GetLogger(loggerName);
             var finalProps = BuildProperties(codeFile, methodName, properties);
+
+            Exception exceptionForLogging = null;
             if (errorDetails != null && errorDetails != Type.Missing.ToString() && !string.IsNullOrEmpty(errorDetails))
             {
                 finalProps["vbErrorDetails"] = errorDetails;
+                exceptionForLogging = new Exception(errorDetails);
             }
+
             switch (level)
             {
-                case "Trace": _logger.Trace(message, finalProps); break;
-                case "Debug": _logger.Debug(message, finalProps); break;
-                case "Info": _logger.Info(message, finalProps); break;
-                case "Warn": _logger.Warn(message, finalProps); break;
-                case "Error": _logger.Error(message, ex: null, properties: finalProps); break;
-                case "Fatal": _logger.Fatal(message, ex: null, properties: finalProps); break;
+                case "Trace": logger.Trace(message, finalProps); break;
+                case "Debug": logger.Debug(message, finalProps); break;
+                case "Info": logger.Info(message, finalProps); break;
+                case "Warn": logger.Warn(message, finalProps); break;
+                case "Error": logger.Error(message, exceptionForLogging, finalProps); break;
+                case "Fatal": logger.Fatal(message, exceptionForLogging, finalProps); break;
             }
         }
 
@@ -131,7 +102,10 @@ namespace MyCompany.Logging.ComBridge
                     dict[key.ToString()] = SanitizeValue(scriptDict.Item(key));
                 }
             }
-            catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"WARN: Failed to convert COM properties object. {ex.Message}"); }
+            catch (Exception ex)
+            {
+                LogManager.InternalLogger.Warn("Failed to convert COM properties object.", ex);
+            }
             return dict;
         }
 

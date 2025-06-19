@@ -1,9 +1,5 @@
 ﻿using MyCompany.Logging.Abstractions;
-using MyCompany.Logging.NLogProvider;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace WindowsFormsApp1
@@ -18,13 +14,31 @@ namespace WindowsFormsApp1
         [STAThread]
         static void Main()
         {
-            LogManager.Initialize(new NLogLoggerFactory());
-            logger = LogManager.GetCurrentClassLogger();
+            InitialiseLogging();
+            ILogger logger = LogManager.GetCurrentClassLogger();
             logger.Info("Application started");
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Form1());
             logger.Info("Application Exiting");
+        }
+
+        private static ILogger InitialiseLogging()
+        {
+            LogManager.Initialize("MyCompany.Logging.NLogProvider", ApplicationEnvironment.DotNet);
+
+            ILogger _log = LogManager.GetLogger("Program");
+
+            if (!LogManager.IsInitialized)
+            {
+                _log.Warn("Application starting with main logging system disabled. Please check internal logs for fatal errors.");
+            }
+            else
+            {
+                _log.Info("Application startup complete. Logging is active.");
+            }
+
+            return _log;
         }
     }
 }

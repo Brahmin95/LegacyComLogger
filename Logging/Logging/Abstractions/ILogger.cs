@@ -5,6 +5,7 @@ namespace MyCompany.Logging.Abstractions
 {
     public interface ILogger
     {
+        // For .NET: Primary method using message templates for structured logging.
         void Trace(string messageTemplate, params object[] args);
         void Debug(string messageTemplate, params object[] args);
         void Info(string messageTemplate, params object[] args);
@@ -12,6 +13,7 @@ namespace MyCompany.Logging.Abstractions
         void Error(Exception ex, string messageTemplate, params object[] args);
         void Fatal(Exception ex, string messageTemplate, params object[] args);
 
+        // For VB6 Bridge: Primary method using dictionaries for structured logging.
         void Trace(string message, Dictionary<string, object> properties = null);
         void Debug(string message, Dictionary<string, object> properties = null);
         void Info(string message, Dictionary<string, object> properties = null);

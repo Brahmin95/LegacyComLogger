@@ -4,16 +4,11 @@ namespace MyCompany.Logging.NLogProvider
 {
     public class NLogLoggerFactory : ILoggerFactory
     {
-        public NLogLoggerFactory(string contextType = "NET")
+        public NLogLoggerFactory()
         {
-            if (contextType == "VB6")
-            {
-                NLogInitializer.ConfigureVb6Context();
-            }
-            else
-            {
-                NLogInitializer.ConfigureDotNetContext();
-            }
+            // The constructor is now clean.
+            // The central LogManager hooks up the SetContextProperty delegate.
+            LogManager.SetContextProperty = (key, value) => NLog.MappedDiagnosticsLogicalContext.Set(key, value);
         }
 
         public ILogger GetLogger(string name)

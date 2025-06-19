@@ -116,6 +116,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="NLogInternalLogger.cs" />
     <Compile Include="NLogLogger.cs" />
     <Compile Include="LogLoggerFactory.cs" />
     <Compile Include="NLogInitializer.cs" />
