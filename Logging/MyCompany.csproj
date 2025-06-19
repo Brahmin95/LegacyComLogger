@@ -121,6 +121,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Logging\Abstractions\IInternalLogger.cs" />
     <Compile Include="Logging\Abstractions\ILogger.cs" />
     <Compile Include="Logging\Abstractions\LogManager.cs" />
     <Compile Include="Logging\ComBridge\ILoggingComBridge.cs" />

@@ -135,6 +135,12 @@ namespace MyCompany.Logging.ComBridge
             return dict;
         }
 
+        /// <summary>
+        /// this makes a nest effort attempt to make a string from the COM object.
+        /// The last attempt is to call a well known member called 'ToLogString'.
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
         private object SanitizeValue(object value)
         {
             if (value == null) return null;
