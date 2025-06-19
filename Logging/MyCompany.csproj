@@ -144,6 +144,7 @@
     <Compile Include="Logging\Abstractions\IInternalLogger.cs" />
     <Compile Include="Logging\Abstractions\ILogger.cs" />
     <Compile Include="Logging\Abstractions\LogManager.cs" />
+    <Compile Include="Logging\Abstractions\MinimalComTest.cs" />
     <Compile Include="Logging\ComBridge\ILoggingComBridge.cs" />
     <Compile Include="Logging\ComBridge\LoggingComBridge.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
