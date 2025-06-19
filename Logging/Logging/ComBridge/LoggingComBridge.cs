@@ -75,7 +75,11 @@ namespace MyCompany.Logging.ComBridge
         public object CreatePropertiesWithTransactionId()
         {
             dynamic props = CreateProperties();
-            if (props != null) { props.Add("transactionId", CreateTransactionId()); }
+            if (props != null)
+            {
+                // FIXED: Use the ECS key 'transaction.id'
+                props.Add("transaction.id", CreateTransactionId());
+            }
             return props;
         }
 
