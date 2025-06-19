@@ -84,6 +84,7 @@
     </COMReference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ComBridgeIntegrationTests.cs" />
     <Compile Include="ComBridgeTests.cs" />
     <Compile Include="KoggingTestBase.cs" />
     <Compile Include="LogManagerTests.cs" />
