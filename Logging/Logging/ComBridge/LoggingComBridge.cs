@@ -24,7 +24,7 @@ namespace MyCompany.Logging.ComBridge
             }
         }
 
-        public string CreateTransactionId() => Guid.NewGuid().ToString("N");
+        public string CreateTransactionId() => Guid.NewGuid().ToString("N"); 
 
         public object CreateProperties()
         {

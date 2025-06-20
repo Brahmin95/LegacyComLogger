@@ -5,28 +5,49 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Xunit;
 
+// Add a using statement for the COM library we just referenced.
+using Scripting;
+
 namespace MyCompany.Logging.Tests
 {
     public class ComBridgeTests : LoggingTestBase
     {
-        // =======================================================
-        // NEW, BEHAVIOR-DRIVEN TESTS FOR THE CONSTRUCTOR
-        // =======================================================
+        [Fact]
+        public void Info_WithScriptingDictionary_CorrectlyConvertsAndPassesProperties()
+        {
+            // ARRANGE
+            var mockLogger = new Mock<ILogger>();
+            var mockFactory = new Mock<ILoggerFactory>();
+            mockFactory.Setup(f => f.GetLogger(It.IsAny<string>())).Returns(mockLogger.Object);
+            InitializeWithMocks(mockFactory.Object, new Mock<IInternalLogger>().Object);
+
+            var bridge = new LoggingComBridge();
+            var vbProperties = new Dictionary();
+            vbProperties.Add("aStringKey", "hello world");
+            vbProperties.Add("anIntegerKey", 12345);
+            vbProperties.Add("aBooleanKey", true);
+
+            // ACT
+            bridge.Info("Test.cls", "TestMethod", "Testing dictionary conversion", vbProperties);
+
+            // ASSERT
+            mockLogger.Verify(log => log.Info(
+                "Testing dictionary conversion",
+                It.Is<Dictionary<string, object>>(d =>
+                    (string)d["aStringKey"] == "hello world" &&
+                    (int)d["anIntegerKey"] == 12345 &&
+                    (bool)d["aBooleanKey"] == true &&
+                    d.ContainsKey("vbCodeFile") &&
+                    d.ContainsKey("vbMethodName")
+                )
+            ), Times.Once);
+        }
 
         [Fact]
         public void Constructor_WhenLogManagerIsNotInitialized_SubsequentGetLoggerReturnsRealLogger()
         {
-            // Arrange
             Assert.False(LogManager.IsInitialized, "Precondition failed: LogManager should not be initialized.");
-
-            // Act
-            // The constructor should trigger the real initialization via reflection.
             var bridge = new LoggingComBridge();
-
-            // Assert
-            // We now ask the LogManager (which should be fully initialized) for a logger.
-            // We can't check the type directly without referencing the provider, but we can
-            // check that it is NOT our NullLogger, which proves initialization occurred.
             var resultLogger = LogManager.GetLogger("test");
             Assert.NotNull(resultLogger);
             Assert.DoesNotContain("NullLogger", resultLogger.GetType().Name);
@@ -36,32 +57,21 @@ namespace MyCompany.Logging.Tests
         public void Constructor_WhenLogManagerIsAlreadyInitialized_DoesNotChangeExistingFactory()
         {
             // Arrange
-            // 1. Create a mock factory that will serve as our "already initialized" state.
             var mockFactory = new Mock<ILoggerFactory>();
             var mockLoggerInstance = new Mock<ILogger>().Object;
             mockFactory.Setup(f => f.GetLogger(It.IsAny<string>())).Returns(mockLoggerInstance);
-
-            // 2. Use our test helper to force LogManager into this initialized state.
             InitializeWithMocks(mockFactory.Object, new Mock<IInternalLogger>().Object);
             Assert.True(LogManager.IsInitialized, "Precondition failed: LogManager should be initialized with mocks.");
 
             // Act
-            // 3. Create the bridge. Its constructor's "if (!IsInitialized)" check should be false,
-            //    so it should do nothing.
             var bridge = new LoggingComBridge();
+            var resultLogger = LogManager.GetLogger("test");
 
             // Assert
-            // 4. We ask the LogManager for a logger. If the constructor did nothing,
-            //    the factory should still be our mock factory, and we should get back our mock logger.
-            //    This assertion now correctly and clearly proves that the original factory was not replaced.
-            var resultLogger = LogManager.GetLogger("test");
+            // THIS IS THE CORRECTED LINE: The third "message" argument is removed.
             Assert.Same(mockLoggerInstance, resultLogger);
         }
 
-
-        // =======================================================
-        // EXISTING TESTS (Unchanged and Still Valid)
-        // =======================================================
         [Fact]
         public void CreatePropertiesWithTransactionId_ReturnsPopulatedDictionary()
         {
@@ -70,6 +80,31 @@ namespace MyCompany.Logging.Tests
             Assert.NotNull(props.Item("transaction.id"));
         }
 
-        // ... all other tests from the last response remain correct ...
+        [ComVisible(true)]
+        [ClassInterface(ClassInterfaceType.AutoDual)]
+        public class MockableComObject
+        {
+            public string ToLogString() => "ID=555,Name=MockObject";
+        }
+
+        [Fact]
+        public void SanitizeValue_HandlesAllDataTypesGracefully()
+        {
+            var mockLogger = new Mock<ILogger>();
+            var mockFactory = new Mock<ILoggerFactory>();
+            mockFactory.Setup(f => f.GetLogger(It.IsAny<string>())).Returns(mockLogger.Object);
+            InitializeWithMocks(mockFactory.Object, new Mock<IInternalLogger>().Object);
+
+            var bridge = new LoggingComBridge();
+            dynamic props = bridge.CreateProperties();
+            props.Add("goodComObject", new MockableComObject());
+
+            bridge.Info("Test.cls", "TestMethod", "Data type test", props);
+
+            mockLogger.Verify(log => log.Info(
+                It.IsAny<string>(),
+                It.Is<Dictionary<string, object>>(d => (string)d["goodComObject"] == "ID=555,Name=MockObject")
+            ), Times.Once);
+        }
     }
 }
