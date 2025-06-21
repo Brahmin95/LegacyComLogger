@@ -2,14 +2,20 @@
 using NLog;
 using System;
 using System.Collections.Generic;
-using Elastic.Apm;
 
 namespace MyCompany.Logging.NLogProvider
 {
     public class NLogLogger : Abstractions.ILogger
     {
         private readonly NLog.ILogger _nlogLogger;
-        public NLogLogger(NLog.ILogger nlogLogger) { _nlogLogger = nlogLogger; }
+        private readonly IApmAgentWrapper _apmWrapper;
+
+        // MODIFIED: Constructor now accepts the IApmAgentWrapper dependency.
+        public NLogLogger(NLog.ILogger nlogLogger, IApmAgentWrapper apmWrapper)
+        {
+            _nlogLogger = nlogLogger ?? throw new ArgumentNullException(nameof(nlogLogger));
+            _apmWrapper = apmWrapper ?? throw new ArgumentNullException(nameof(apmWrapper));
+        }
 
         public void Trace(string mt, params object[] a) => _nlogLogger.Trace(mt, a);
         public void Debug(string mt, params object[] a) => _nlogLogger.Debug(mt, a);
@@ -31,46 +37,41 @@ namespace MyCompany.Logging.NLogProvider
 
             var logEvent = new LogEventInfo(level, _nlogLogger.Name, message) { Exception = ex };
 
-            // Create a mutable dictionary of properties to work with.
             var mutableProperties = properties != null ? new Dictionary<string, object>(properties) : new Dictionary<string, object>();
 
-            // =======================================================
-            // ENRICHMENT PHASE 1: VB6 Call Site Information (CORRECTED)
-            // =======================================================
-            // We can't set the read-only Caller... properties.
-            // Instead, we add special properties to the LogEvent's Properties dictionary.
-            // The ecs-layout and other layouts know how to find and use these special keys.
-
+            // ENRICHMENT PHASE 1: VB6 Call Site Information
             if (mutableProperties.TryGetValue("vbCodeFile", out object codeFile) && codeFile is string)
             {
-                // Add the file name using the special 'callsite-filename' key.
                 logEvent.Properties["callsite-filename"] = (string)codeFile;
-                mutableProperties.Remove("vbCodeFile"); // Clean up the temporary property
+                mutableProperties.Remove("vbCodeFile");
             }
             if (mutableProperties.TryGetValue("vbMethodName", out object methodName) && methodName is string)
             {
-                // Add the method name using the special 'callsite' key.
                 logEvent.Properties["callsite"] = (string)methodName;
-                mutableProperties.Remove("vbMethodName"); // Clean up the temporary property
+                mutableProperties.Remove("vbMethodName");
             }
 
             // =======================================================
-            // ENRICHMENT PHASE 2: Elastic APM Correlation IDs
+            // ENRICHMENT PHASE 2: Elastic APM Correlation IDs (REFACTORED)
             // =======================================================
-            if (Agent.IsConfigured && Agent.Tracer.CurrentTransaction != null)
+            // Logic now calls the testable wrapper instead of the static Agent.
+            var traceId = _apmWrapper.GetCurrentTraceId();
+            if (!string.IsNullOrEmpty(traceId))
             {
-                var currentTransaction = Agent.Tracer.CurrentTransaction;
-                logEvent.Properties["transaction.id"] = currentTransaction.Id;
-                logEvent.Properties["trace.id"] = currentTransaction.TraceId;
-                if (Agent.Tracer.CurrentSpan != null && Agent.Tracer.CurrentSpan.Id != currentTransaction.Id)
-                {
-                    logEvent.Properties["span.id"] = Agent.Tracer.CurrentSpan.Id;
-                }
+                logEvent.Properties["trace.id"] = traceId;
+            }
+            var transactionId = _apmWrapper.GetCurrentTransactionId();
+            if (!string.IsNullOrEmpty(transactionId))
+            {
+                logEvent.Properties["transaction.id"] = transactionId;
+            }
+            var spanId = _apmWrapper.GetCurrentSpanId();
+            if (!string.IsNullOrEmpty(spanId))
+            {
+                logEvent.Properties["span.id"] = spanId;
             }
 
-            // =======================================================
             // FINALIZATION: Add all remaining properties to the event.
-            // =================================G======================
             foreach (var prop in mutableProperties)
             {
                 if (!logEvent.Properties.ContainsKey(prop.Key))
@@ -83,4 +84,3 @@ namespace MyCompany.Logging.NLogProvider
         }
     }
 }
-

@@ -143,6 +143,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ElasticApmAgentWrapper.cs" />
+    <Compile Include="IApmAgentWrapper.cs" />
     <Compile Include="NLogInternalLogger.cs" />
     <Compile Include="NLogLogger.cs" />
     <Compile Include="LogLoggerFactory.cs" />

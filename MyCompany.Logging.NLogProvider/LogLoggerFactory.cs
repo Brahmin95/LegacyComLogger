@@ -6,14 +6,17 @@ namespace MyCompany.Logging.NLogProvider
     {
         public NLogLoggerFactory()
         {
-            // The constructor is now clean.
-            // The central LogManager hooks up the SetContextProperty delegate.
             LogManager.SetContextProperty = (key, value) => NLog.MappedDiagnosticsLogicalContext.Set(key, value);
         }
 
         public ILogger GetLogger(string name)
         {
-            return new NLogLogger(NLog.LogManager.GetLogger(name));
+            // MODIFIED: The factory is now responsible for creating and injecting
+            // the dependencies for the NLogLogger. It provides the "real" wrapper
+            // for the production application.
+            var nlogInstance = NLog.LogManager.GetLogger(name);
+            var apmWrapper = new ElasticApmAgentWrapper();
+            return new NLogLogger(nlogInstance, apmWrapper);
         }
     }
 }
