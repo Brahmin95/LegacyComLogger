@@ -133,7 +133,7 @@
   <ItemGroup>
     <Compile Include="ComBridgeIntegrationTests.cs" />
     <Compile Include="ComBridgeTests.cs" />
-    <Compile Include="KoggingTestBase.cs" />
+    <Compile Include="LoggingTestBase.cs" />
     <Compile Include="LogManagerTests.cs" />
     <Compile Include="NLogProviderTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

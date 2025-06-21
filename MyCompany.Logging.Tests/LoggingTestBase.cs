@@ -66,7 +66,9 @@ namespace MyCompany.Logging.Tests
 
             // Reset NLog's own static state.
             NLog.LogManager.Configuration = null;
-            NLog.MappedDiagnosticsLogicalContext.Clear();
+
+            // Use the modern API to clear the global context for test isolation.
+            NLog.GlobalDiagnosticsContext.Clear();
 
             // Clean up any environment variables set by tests.
             Environment.SetEnvironmentVariable(TestCorrelationIdEnvVar, null);

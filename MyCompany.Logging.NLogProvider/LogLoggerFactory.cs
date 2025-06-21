@@ -11,14 +11,15 @@ namespace MyCompany.Logging.NLogProvider
         /// <summary>
         /// Initializes a new instance of the NLogLoggerFactory class.
         /// It hooks into the LogManager to provide a way to push context properties
-        /// into NLog's MappedDiagnosticsLogicalContext.
+        /// into NLog's global context.
         /// </summary>
         public NLogLoggerFactory()
         {
             // This delegate connects the abstract LogManager to the concrete NLog implementation.
-            // When LogManager.SetAbstractedContextProperty is called, it will now flow through
-            // to NLog's context, making the properties available to layouts.
-            LogManager.SetContextProperty = (key, value) => NLog.MappedDiagnosticsLogicalContext.Set(key, value);
+            // We use GlobalDiagnosticsContext (GDC) because the properties we set (like service.name
+            // and session.id) are global for the entire application process lifetime.
+            // This is the modern, non-obsolete replacement for MDLC for this use case.
+            LogManager.SetContextProperty = (key, value) => NLog.GlobalDiagnosticsContext.Set(key, value);
         }
 
         /// <summary>
@@ -28,9 +29,6 @@ namespace MyCompany.Logging.NLogProvider
         /// <returns>An ILogger implementation.</returns>
         public ILogger GetLogger(string name)
         {
-            // This is the Composition Root for the logger. It is responsible for creating
-            // the logger and all of its dependencies. In production, we new up the "real"
-            // dependencies like ElasticApmAgentWrapper. In tests, we can mock them.
             var nlogInstance = NLog.LogManager.GetLogger(name);
             var apmWrapper = new ElasticApmAgentWrapper();
             return new NLogLogger(nlogInstance, apmWrapper);

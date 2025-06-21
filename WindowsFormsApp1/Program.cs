@@ -15,7 +15,7 @@ namespace WindowsFormsApp1
         static void Main()
         {
             InitialiseLogging();
-            ILogger logger = LogManager.GetCurrentClassLogger();
+            logger = LogManager.GetCurrentClassLogger();
             logger.Info("Application started");
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
