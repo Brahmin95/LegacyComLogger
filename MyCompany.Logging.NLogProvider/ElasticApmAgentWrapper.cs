@@ -13,23 +13,41 @@ namespace MyCompany.Logging.NLogProvider
         /// <inheritdoc/>
         public string GetCurrentTransactionId()
         {
+            // CRITICAL FIX: We must check if the agent is configured before accessing the Tracer property.
+            // If not configured, Agent.Tracer itself can be null, leading to a NullReferenceException.
+            if (!Agent.IsConfigured)
+            {
+                return null;
+            }
             return Agent.Tracer.CurrentTransaction?.Id;
         }
 
         /// <inheritdoc/>
         public string GetCurrentTraceId()
         {
+            // CRITICAL FIX: Added Agent.IsConfigured check.
+            if (!Agent.IsConfigured)
+            {
+                return null;
+            }
             return Agent.Tracer.CurrentTransaction?.TraceId;
         }
 
         /// <inheritdoc/>
         public string GetCurrentSpanId()
         {
+            // CRITICAL FIX: Added Agent.IsConfigured check.
+            if (!Agent.IsConfigured)
+            {
+                return null;
+            }
+
             var currentTransaction = Agent.Tracer.CurrentTransaction;
             var currentSpan = Agent.Tracer.CurrentSpan;
 
             // Per Elastic Common Schema, a span.id should only be present if it's
-            // different from the transaction.id (i.e., it's a child span).
+            // different from the transaction.id (i.e., it's a child span). The root
+            // span of a transaction has the same ID as the transaction itself.
             if (currentTransaction != null && currentSpan != null && currentSpan.Id != currentTransaction.Id)
             {
                 return currentSpan.Id;
@@ -41,7 +59,12 @@ namespace MyCompany.Logging.NLogProvider
         /// <inheritdoc/>
         public void AddCustomContext(IDictionary<string, object> context)
         {
-            // Get the currently active transaction. If there isn't one, do nothing.
+            // CRITICAL FIX: Added Agent.IsConfigured check.
+            if (!Agent.IsConfigured)
+            {
+                return;
+            }
+
             var transaction = Agent.Tracer.CurrentTransaction;
             if (transaction == null || context == null)
             {
@@ -57,29 +80,13 @@ namespace MyCompany.Logging.NLogProvider
                 // provide a safe fallback for any other complex types.
                 switch (entry.Value)
                 {
-                    case string s:
-                        transaction.SetLabel(entry.Key, s);
-                        break;
-                    case bool b:
-                        transaction.SetLabel(entry.Key, b);
-                        break;
-                    case int i:
-                        transaction.SetLabel(entry.Key, i);
-                        break;
-                    case long l:
-                        transaction.SetLabel(entry.Key, l);
-                        break;
-                    case double d:
-                        transaction.SetLabel(entry.Key, d);
-                        break;
-                    case decimal m:
-                        // SetLabel doesn't have a decimal overload, so we convert it to double.
-                        transaction.SetLabel(entry.Key, (double)m);
-                        break;
-                    default:
-                        // For any other type, we fall back to a string representation.
-                        transaction.SetLabel(entry.Key, entry.Value?.ToString() ?? "null");
-                        break;
+                    case string s: transaction.SetLabel(entry.Key, s); break;
+                    case bool b: transaction.SetLabel(entry.Key, b); break;
+                    case int i: transaction.SetLabel(entry.Key, i); break;
+                    case long l: transaction.SetLabel(entry.Key, l); break;
+                    case double d: transaction.SetLabel(entry.Key, d); break;
+                    case decimal m: transaction.SetLabel(entry.Key, (double)m); break;
+                    default: transaction.SetLabel(entry.Key, entry.Value?.ToString() ?? "null"); break;
                 }
             }
         }
