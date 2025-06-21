@@ -158,24 +158,20 @@ namespace MyCompany.Logging.Abstractions
             }
         }
 
-        // ===================================================================
-        // FULL IMPLEMENTATION OF THE NULL OBJECT PATTERNS
-        // ===================================================================
-
         private class NullLogger : ILogger
         {
-            public void Trace(string messageTemplate, params object[] args) { }
-            public void Debug(string messageTemplate, params object[] args) { }
-            public void Info(string messageTemplate, params object[] args) { }
-            public void Warn(string messageTemplate, params object[] args) { }
-            public void Error(Exception ex, string messageTemplate, params object[] args) { }
-            public void Fatal(Exception ex, string messageTemplate, params object[] args) { }
-            public void Trace(string message, Dictionary<string, object> properties = null) { }
-            public void Debug(string message, Dictionary<string, object> properties = null) { }
-            public void Info(string message, Dictionary<string, object> properties = null) { }
-            public void Warn(string message, Dictionary<string, object> properties = null) { }
-            public void Error(string message, Exception ex = null, Dictionary<string, object> properties = null) { }
-            public void Fatal(string message, Exception ex = null, Dictionary<string, object> properties = null) { }
+            public void Trace(string mt, params object[] a) { }
+            public void Debug(string mt, params object[] a) { }
+            public void Info(string mt, params object[] a) { }
+            public void Warn(string mt, params object[] a) { }
+            public void Error(Exception ex, string mt, params object[] a) { }
+            public void Fatal(Exception ex, string mt, params object[] a) { }
+            public void Trace(string m, Dictionary<string, object> p = null) { }
+            public void Debug(string m, Dictionary<string, object> p = null) { }
+            public void Info(string m, Dictionary<string, object> p = null) { }
+            public void Warn(string m, Dictionary<string, object> p = null) { }
+            public void Error(string m, Exception ex = null, Dictionary<string, object> p = null) { }
+            public void Fatal(string m, Exception ex = null, Dictionary<string, object> p = null) { }
         }
 
         private class NullInternalLogger : IInternalLogger

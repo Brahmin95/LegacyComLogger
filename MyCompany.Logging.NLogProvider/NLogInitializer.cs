@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MyCompany.Logging.Abstractions;
+using System;
 
 namespace MyCompany.Logging.NLogProvider
 {
@@ -21,7 +22,7 @@ namespace MyCompany.Logging.NLogProvider
                     correlationId = Guid.NewGuid().ToString("N");
                     Environment.SetEnvironmentVariable(CorrelationIdEnvVar, correlationId);
                 }
-                NLog.MappedDiagnosticsLogicalContext.Set("session.id", correlationId);
+                LogManager.SetAbstractedContextProperty("session.id", correlationId);
 
                 _isInitialized = true;
             }
@@ -30,10 +31,10 @@ namespace MyCompany.Logging.NLogProvider
         public static void ConfigureDotNetContext()
         {
             EnsureInitialized();
-            NLog.MappedDiagnosticsLogicalContext.Set("labels.app_type", ".NET");
+            LogManager.SetAbstractedContextProperty("labels.app_type", ".NET");
             try
             {
-                NLog.MappedDiagnosticsLogicalContext.Set("service.name", AppDomain.CurrentDomain.FriendlyName);
+                LogManager.SetAbstractedContextProperty("service.name", AppDomain.CurrentDomain.FriendlyName);
             }
             catch { /* resilient */ }
         }
@@ -41,12 +42,12 @@ namespace MyCompany.Logging.NLogProvider
         public static void ConfigureVb6Context()
         {
             EnsureInitialized();
-            NLog.MappedDiagnosticsLogicalContext.Set("labels.app_type", "VB6");
+            LogManager.SetAbstractedContextProperty("labels.app_type", "VB6");
             try
             {
                 using (var process = System.Diagnostics.Process.GetCurrentProcess())
                 {
-                    NLog.MappedDiagnosticsLogicalContext.Set("service.name", process.MainModule.ModuleName);
+                    LogManager.SetAbstractedContextProperty("service.name", process.MainModule.ModuleName);
                 }
             }
             catch { /* resilient */ }
