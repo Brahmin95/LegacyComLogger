@@ -13,36 +13,27 @@ namespace MyCompany.Logging.ComBridge
     /// </summary>
     [ComVisible(true)]
     [Guid("F9E8D7C6-B5A4-4b3c-2a1b-9876543210FE")]
-    [ClassInterface(ClassInterfaceType.None)] // We explicitly implement the interface for clean COM.
+    [ClassInterface(ClassInterfaceType.None)]
     [ProgId("MyCompany.Logging.ComBridge.LoggingComBridge")]
     public class LoggingComBridge : ILoggingComBridge
     {
+        #region Constructor and Helpers
         /// <summary>
         /// Initializes a new instance of the LoggingComBridge class.
         /// The constructor ensures that the central LogManager is initialized if it hasn't been already.
         /// </summary>
         public LoggingComBridge()
         {
-            // This is the single, consistent entry point for initialization from a COM client.
-            // If the logger is already initialized (e.g., by another component in the same process),
-            // this call will safely do nothing.
             if (!LogManager.IsInitialized)
             {
                 LogManager.Initialize("MyCompany.Logging.NLogProvider", ApplicationEnvironment.Vb6);
             }
         }
 
-        /// <summary>
-        /// Creates a new, unique transaction ID string (a GUID without dashes).
-        /// </summary>
-        /// <returns>A new transaction ID string.</returns>
+        /// <inheritdoc/>
         public string CreateTransactionId() => Guid.NewGuid().ToString("N");
 
-        /// <summary>
-        /// Creates a new Scripting.Dictionary object for holding custom log properties.
-        /// This is a helper method for VB6 developers.
-        /// </summary>
-        /// <returns>A COM object that can be used as a dictionary.</returns>
+        /// <inheritdoc/>
         public object CreateProperties()
         {
             try
@@ -58,59 +49,78 @@ namespace MyCompany.Logging.ComBridge
             }
         }
 
-        /// <summary>
-        /// Creates a new Scripting.Dictionary and pre-populates it with a new transaction ID.
-        /// </summary>
-        /// <returns>A COM dictionary containing a 'transaction.id' key.</returns>
+        /// <inheritdoc/>
         public object CreatePropertiesWithTransactionId()
         {
             dynamic props = CreateProperties();
             if (props != null) { props.Add("transaction.id", CreateTransactionId()); }
             return props;
         }
-
-        // --- ILoggingComBridge Method Implementations ---
-        // These methods simply delegate to the private Log method with the correct log level.
-        #region Public Log Methods
-
-        /// <inheritdoc/>
-        public void Trace(string codeFile, string methodName, string message, [Optional] object properties) => Log("Trace", codeFile, methodName, message, null, properties);
-        /// <inheritdoc/>
-        public void Debug(string codeFile, string methodName, string message, [Optional] object properties) => Log("Debug", codeFile, methodName, message, null, properties);
-        /// <inheritdoc/>
-        public void Info(string codeFile, string methodName, string message, [Optional] object properties) => Log("Info", codeFile, methodName, message, null, properties);
-        /// <inheritdoc/>
-        public void Warn(string codeFile, string methodName, string message, [Optional] object properties) => Log("Warn", codeFile, methodName, message, null, properties);
-        /// <inheritdoc/>
-        public void Error(string codeFile, string methodName, string message, [Optional] string errorDetails, [Optional] object properties) => Log("Error", codeFile, methodName, message, errorDetails, properties);
-        /// <inheritdoc/>
-        public void Fatal(string codeFile, string methodName, string message, [Optional] string errorDetails, [Optional] object properties) => Log("Fatal", codeFile, methodName, message, errorDetails, properties);
-
         #endregion
 
+        #region Public Log Methods
+        /// <inheritdoc/>
+        public void Trace(string codeFile, string methodName, string message, [Optional] object properties)
+            => Log("Trace", codeFile, methodName, message, null, null, null, null, properties);
+
+        /// <inheritdoc/>
+        public void Debug(string codeFile, string methodName, string message, [Optional] object properties)
+            => Log("Debug", codeFile, methodName, message, null, null, null, null, properties);
+
+        /// <inheritdoc/>
+        public void Info(string codeFile, string methodName, string message, [Optional] object properties)
+            => Log("Info", codeFile, methodName, message, null, null, null, null, properties);
+
+        /// <inheritdoc/>
+        public void Warn(string codeFile, string methodName, string message, [Optional] object properties)
+            => Log("Warn", codeFile, methodName, message, null, null, null, null, properties);
+
+        /// <inheritdoc/>
+        public void Error(string codeFile, string methodName, string message, [Optional] object properties)
+            => Log("Error", codeFile, methodName, message, message, null, null, null, properties);
+
+        /// <inheritdoc/>
+        public void Fatal(string codeFile, string methodName, string message, [Optional] object properties)
+            => Log("Fatal", codeFile, methodName, message, message, null, null, null, properties);
+
+        /// <inheritdoc/>
+        public void ErrorHandler(string codeFile, string methodName, string errorDescription, long errorNumber, string errorSource, int lineNumber, [Optional] string message, [Optional] object properties)
+        {
+            // If the optional message is not provided, we default to using the error description
+            // as the main log message for consistency.
+            string finalMessage = (message != null && message != Type.Missing.ToString() && !string.IsNullOrEmpty(message)) ? message : errorDescription;
+            Log("Error", codeFile, methodName, finalMessage, errorDescription, errorNumber, errorSource, lineNumber, properties);
+        }
+        #endregion
 
         /// <summary>
-        /// The private core logging method that all public log methods call.
-        /// It constructs the logger name, builds the properties dictionary, and calls the abstract ILogger.
+        /// The private core logging method that all public log methods call. It handles both simple
+        /// and structured error scenarios and creates the appropriate Exception object.
         /// </summary>
-        private void Log(string level, string codeFile, string methodName, string message, string errorDetails, object properties)
+        private void Log(string level, string codeFile, string methodName, string message, string errorDescription, long? errorNumber, string errorSource, int? lineNumber, object properties)
         {
-            // Dynamically construct a logger name from the application and file name.
-            // This allows for granular filtering in NLog.config (e.g., name="LegacyApp.exe.frmOrders.frm.*").
             string appName = LogManager.GetAbstractedContextProperty("service.name") as string ?? "Vb6App";
             string loggerName = $"{appName}.{codeFile}";
             var logger = LogManager.GetLogger(loggerName);
 
-            // Build the final dictionary of properties for the log event.
             var finalProps = BuildProperties(codeFile, methodName, properties);
 
             Exception exceptionForLogging = null;
-            if (errorDetails != null && errorDetails != Type.Missing.ToString() && !string.IsNullOrEmpty(errorDetails))
+            // Only create an exception object for Error and Fatal levels.
+            if ((level == "Error" || level == "Fatal") && !string.IsNullOrEmpty(errorDescription))
             {
-                // To get a proper stack trace in logging systems like Elastic, it's best to
-                // wrap the error string in a real Exception object.
-                finalProps["vbErrorDetails"] = errorDetails;
-                exceptionForLogging = new Exception(errorDetails);
+                if (errorNumber.HasValue)
+                {
+                    // Case 1: Called from ErrorHandler. Create the rich, structured exception object.
+                    // The .NET code intelligently handles lineNumber if it's 0.
+                    exceptionForLogging = new VBErrorException(errorDescription, errorNumber.Value, errorSource, lineNumber == 0 ? (int?)null : lineNumber);
+                }
+                else
+                {
+                    // Case 2: Called from simple Error/Fatal. Wrap the message in the custom exception
+                    // to ensure a consistent 'error.type' in the final log.
+                    exceptionForLogging = new VBErrorException(errorDescription);
+                }
             }
 
             // Call the appropriate method on the abstract ILogger interface.
@@ -125,16 +135,14 @@ namespace MyCompany.Logging.ComBridge
             }
         }
 
+        #region Private Helpers
         /// <summary>
         /// Builds a .NET dictionary from the provided COM properties and enriches it
         /// with the VB6-specific call site information.
         /// </summary>
         private Dictionary<string, object> BuildProperties(string codeFile, string methodName, object comProperties)
         {
-            // These special properties are added so the NLogProvider can later translate them
-            // into NLog-specific call site properties for the ecs-layout.
             var dict = new Dictionary<string, object> { { "vbCodeFile", codeFile }, { "vbMethodName", methodName } };
-
             if (comProperties != null && comProperties != Type.Missing)
             {
                 var vbProps = ConvertComObjectToDictionary(comProperties);
@@ -152,8 +160,6 @@ namespace MyCompany.Logging.ComBridge
             if (comObject == null) return dict;
             try
             {
-                // Using 'dynamic' allows us to call methods like .Keys() and .Item() on the COM
-                // object without needing a hard reference to the Scripting Runtime library.
                 dynamic scriptDict = comObject;
                 foreach (var key in scriptDict.Keys())
                 {
@@ -162,7 +168,6 @@ namespace MyCompany.Logging.ComBridge
             }
             catch (Exception ex)
             {
-                // This will catch errors if the passed object isn't actually a dictionary.
                 LogManager.InternalLogger.Warn("Failed to convert COM properties object. It may not be a Scripting.Dictionary.", ex);
             }
             return dict;
@@ -170,29 +175,19 @@ namespace MyCompany.Logging.ComBridge
 
         /// <summary>
         /// Sanitizes a value from a COM object before adding it to the log properties.
-        /// It attempts to convert complex COM objects to a string using a "ToLogString()" convention.
         /// </summary>
-        /// <param name="value">The value to sanitize.</param>
-        /// <returns>A log-safe representation of the value.</returns>
         private object SanitizeValue(object value)
         {
             if (value == null) return null;
             var type = value.GetType();
-
-            // Primitive types are safe to log directly.
             if (type.IsPrimitive || value is string || value is decimal || value is DateTime) return value;
-
-            // For complex COM objects, we establish a convention.
             try
             {
-                // CONVENTION: If a VB6 developer wants a custom string representation of their
-                // object in the logs, they should implement a public 'ToLogString()' method.
                 try { return ((dynamic)value).ToLogString(); }
-                // If ToLogString() doesn't exist, we fall back to the default ToString().
                 catch (RuntimeBinderException) { return value.ToString(); }
             }
-            // If even ToString() fails, we return a safe placeholder.
             catch (Exception) { return "[Unsupported COM Object]"; }
         }
+        #endregion
     }
 }

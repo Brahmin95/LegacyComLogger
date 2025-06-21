@@ -47,7 +47,8 @@ namespace MyCompany.Logging.ComBridge
         /// <param name="message">The message that describes the error.</param>
         public VBErrorException(string message) : base(message)
         {
-            // Set default values for non-structured errors.
+            // Set default values for non-structured errors. These values clearly indicate
+            // that this was a logical error, not a runtime crash from the VB Err object.
             this.VbErrorNumber = -1;
             this.VbErrorSource = "LogicalError";
         }
@@ -55,7 +56,10 @@ namespace MyCompany.Logging.ComBridge
 
         /// <summary>
         /// Initializes a new instance of the <see cref="VBErrorException"/> class with serialized data.
+        /// This constructor is required for exception serialization.
         /// </summary>
+        /// <param name="info">The <see cref="SerializationInfo"/> that holds the serialized object data about the exception being thrown.</param>
+        /// <param name="context">The <see cref="StreamingContext"/> that contains contextual information about the source or destination.</param>
         protected VBErrorException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
             VbErrorNumber = info.GetInt64("VbErrorNumber");
@@ -66,6 +70,8 @@ namespace MyCompany.Logging.ComBridge
         /// <summary>
         /// Sets the SerializationInfo with information about the exception.
         /// </summary>
+        /// <param name="info">The <see cref="SerializationInfo"/> that holds the serialized object data about the exception being thrown.</param>
+        /// <param name="context">The <see cref="StreamingContext"/> that contains contextual information about the source or destination.</param>
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);

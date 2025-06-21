@@ -147,6 +147,7 @@
     <Compile Include="Logging\Abstractions\MinimalComTest.cs" />
     <Compile Include="Logging\ComBridge\ILoggingComBridge.cs" />
     <Compile Include="Logging\ComBridge\LoggingComBridge.cs" />
+    <Compile Include="Logging\ComBridge\VBErrorException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
