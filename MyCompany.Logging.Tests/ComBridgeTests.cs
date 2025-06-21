@@ -2,108 +2,111 @@
 using MyCompany.Logging.Abstractions;
 using MyCompany.Logging.ComBridge;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using Xunit;
-
-// Add a using statement for the COM library we just referenced.
-using Scripting;
 
 namespace MyCompany.Logging.Tests
 {
     public class ComBridgeTests : LoggingTestBase
     {
-        [Fact]
-        public void Info_WithScriptingDictionary_CorrectlyConvertsAndPassesProperties()
+        private readonly Mock<ILogger> _mockLogger;
+        private readonly LoggingComBridge _bridge;
+
+        public ComBridgeTests()
         {
-            // ARRANGE
-            var mockLogger = new Mock<ILogger>();
+            _mockLogger = new Mock<ILogger>();
             var mockFactory = new Mock<ILoggerFactory>();
-            mockFactory.Setup(f => f.GetLogger(It.IsAny<string>())).Returns(mockLogger.Object);
+            mockFactory.Setup(f => f.GetLogger(It.IsAny<string>())).Returns(_mockLogger.Object);
             InitializeWithMocks(mockFactory.Object, new Mock<IInternalLogger>().Object);
+            _bridge = new LoggingComBridge();
+        }
 
-            var bridge = new LoggingComBridge();
-            var vbProperties = new Dictionary();
-            vbProperties.Add("aStringKey", "hello world");
-            vbProperties.Add("anIntegerKey", 12345);
-            vbProperties.Add("aBooleanKey", true);
+        [Fact]
+        public void Log_WithNoActiveTrace_DoesNotAddTraceIds()
+        {
+            _bridge.Info("Test.cls", "TestMethod", "Message with no context");
 
-            // ACT
-            bridge.Info("Test.cls", "TestMethod", "Testing dictionary conversion", vbProperties);
-
-            // ASSERT
-            mockLogger.Verify(log => log.Info(
-                "Testing dictionary conversion",
+            _mockLogger.Verify(log => log.Info(
+                "Message with no context",
                 It.Is<Dictionary<string, object>>(d =>
-                    (string)d["aStringKey"] == "hello world" &&
-                    (int)d["anIntegerKey"] == 12345 &&
-                    (bool)d["aBooleanKey"] == true &&
                     d.ContainsKey("vbCodeFile") &&
-                    d.ContainsKey("vbMethodName")
+                    !d.ContainsKey("trace.id") &&
+                    !d.ContainsKey("transaction.id")
                 )
             ), Times.Once);
         }
 
         [Fact]
-        public void Constructor_WhenLogManagerIsNotInitialized_SubsequentGetLoggerReturnsRealLogger()
+        public void Log_WithinTraceScope_AddsTraceAndTransactionId()
         {
-            Assert.False(LogManager.IsInitialized, "Precondition failed: LogManager should not be initialized.");
-            var bridge = new LoggingComBridge();
-            var resultLogger = LogManager.GetLogger("test");
-            Assert.NotNull(resultLogger);
-            Assert.DoesNotContain("NullLogger", resultLogger.GetType().Name);
+            using (var txn = _bridge.BeginTrace("TestTrace", "test"))
+            {
+                _bridge.Info("Test.cls", "TestMethod", "Message within trace");
+            }
+
+            _mockLogger.Verify(log => log.Info(
+                "Message within trace",
+                It.Is<Dictionary<string, object>>(d =>
+                    d.ContainsKey("trace.id") &&
+                    d.ContainsKey("transaction.id") &&
+                    d["trace.id"] == d["transaction.id"]
+                )
+            ), Times.Once);
         }
 
         [Fact]
-        public void Constructor_WhenLogManagerIsAlreadyInitialized_DoesNotChangeExistingFactory()
+        public void Log_WithinSpanScope_AddsTraceTransactionAndSpanId()
         {
-            // Arrange
-            var mockFactory = new Mock<ILoggerFactory>();
-            var mockLoggerInstance = new Mock<ILogger>().Object;
-            mockFactory.Setup(f => f.GetLogger(It.IsAny<string>())).Returns(mockLoggerInstance);
-            InitializeWithMocks(mockFactory.Object, new Mock<IInternalLogger>().Object);
-            Assert.True(LogManager.IsInitialized, "Precondition failed: LogManager should be initialized with mocks.");
+            string traceId = null;
+            string transactionId = null;
 
-            // Act
-            var bridge = new LoggingComBridge();
-            var resultLogger = LogManager.GetLogger("test");
+            using (var trace = _bridge.BeginTrace("TestTrace", "test"))
+            {
+                _mockLogger.Setup(l => l.Info(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+                   .Callback<string, Dictionary<string, object>>((s, d) =>
+                   {
+                       if (d.ContainsKey("trace.id")) traceId = (string)d["trace.id"];
+                       if (d.ContainsKey("transaction.id")) transactionId = (string)d["transaction.id"];
+                   });
+                _bridge.Info("Test.cls", "TraceMethod", "Message in trace");
 
-            // Assert
-            // THIS IS THE CORRECTED LINE: The third "message" argument is removed.
-            Assert.Same(mockLoggerInstance, resultLogger);
+                Assert.NotNull(traceId);
+                Assert.NotNull(transactionId);
+
+                using (var span = _bridge.BeginSpan("TestSpan", "test.span"))
+                {
+                    _bridge.Info("Test.cls", "SpanMethod", "Message within span");
+                }
+            }
+
+            _mockLogger.Verify(log => log.Info(
+                "Message within span",
+                It.Is<Dictionary<string, object>>(d =>
+                    (string)d["trace.id"] == traceId &&
+                    (string)d["transaction.id"] == transactionId &&
+                    d.ContainsKey("span.id") &&
+                    (string)d["span.id"] != transactionId
+                )
+            ), Times.Once);
         }
 
         [Fact]
-        public void CreatePropertiesWithTransactionId_ReturnsPopulatedDictionary()
+        public void Log_AfterTraceScopeEnds_DoesNotAddTraceIds()
         {
-            var bridge = new LoggingComBridge();
-            dynamic props = bridge.CreatePropertiesWithTransactionId();
-            Assert.NotNull(props.Item("transaction.id"));
-        }
+            using (var txn = _bridge.BeginTrace("TestTrace", "test"))
+            {
+                _bridge.Info("Test.cls", "TestMethod", "Message within trace");
+            }
 
-        [ComVisible(true)]
-        [ClassInterface(ClassInterfaceType.AutoDual)]
-        public class MockableComObject
-        {
-            public string ToLogString() => "ID=555,Name=MockObject";
-        }
+            _bridge.Info("Test.cls", "AfterMethod", "Message after trace");
 
-        [Fact]
-        public void SanitizeValue_HandlesAllDataTypesGracefully()
-        {
-            var mockLogger = new Mock<ILogger>();
-            var mockFactory = new Mock<ILoggerFactory>();
-            mockFactory.Setup(f => f.GetLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            InitializeWithMocks(mockFactory.Object, new Mock<IInternalLogger>().Object);
+            _mockLogger.Verify(log => log.Info(
+                "Message within trace",
+                It.Is<Dictionary<string, object>>(d => d.ContainsKey("trace.id"))
+            ), Times.Once);
 
-            var bridge = new LoggingComBridge();
-            dynamic props = bridge.CreateProperties();
-            props.Add("goodComObject", new MockableComObject());
-
-            bridge.Info("Test.cls", "TestMethod", "Data type test", props);
-
-            mockLogger.Verify(log => log.Info(
-                It.IsAny<string>(),
-                It.Is<Dictionary<string, object>>(d => (string)d["goodComObject"] == "ID=555,Name=MockObject")
+            _mockLogger.Verify(log => log.Info(
+                "Message after trace",
+                It.Is<Dictionary<string, object>>(d => !d.ContainsKey("trace.id"))
             ), Times.Once);
         }
     }

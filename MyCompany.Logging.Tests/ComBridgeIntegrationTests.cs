@@ -8,19 +8,16 @@ namespace MyCompany.Logging.Tests
     /// <summary>
     /// This is an INTEGRATION TEST, not a unit test.
     /// It verifies that the LoggingComBridge is correctly registered and callable via COM Interop.
-    /// It uses low-level COM activation to ensure a true out-of-process COM object (if configured)
-    /// is created and tested, mimicking how a VB6 application would consume it.
+    /// It uses low-level COM activation to ensure a true COM object is created and tested,
+    /// mimicking how a VB6 application would consume it.
     /// 
     /// PREREQUISITE: For this test to pass, the MyCompany.Logging.ComBridge.dll must have been
     /// successfully registered with the system using `regasm.exe`. This is typically done
     /// in a post-build event or a setup script.
-    /// Example Post-Build Command:
-    /// "%Windir%\Microsoft.NET\Framework\v4.0.30319\RegAsm.exe" "$(TargetPath)" /tlb /codebase
     /// </summary>
-    public class ComBridgeIntegrationTests
+    public class ComBridgeIntegrationTests : LoggingTestBase
     {
         #region COM P/Invoke Signatures and Interfaces
-
         // The standard COM GUID for the IClassFactory interface.
         private static readonly Guid IID_IClassFactory = new Guid("00000001-0000-0000-C000-000000000046");
 
@@ -43,10 +40,10 @@ namespace MyCompany.Logging.Tests
         [ComImport, Guid("00000001-0000-0000-C000-000000000046"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
         private interface IClassFactory
         {
+            // THIS IS THE FIX: The method definitions are restored.
             void CreateInstance([MarshalAs(UnmanagedType.IUnknown)] object pUnkOuter, ref Guid riid, [MarshalAs(UnmanagedType.IUnknown)] out object ppvObject);
             void LockServer(bool fLock);
         }
-
         #endregion
 
         /// <summary>
@@ -59,6 +56,7 @@ namespace MyCompany.Logging.Tests
         {
             IClassFactory classFactory = null;
             object comBridgeObject = null;
+            ILoggingTransaction transaction = null;
 
             try
             {
@@ -73,8 +71,7 @@ namespace MyCompany.Logging.Tests
                 classFactory = (IClassFactory)classFactoryObject;
                 Assert.NotNull(classFactory);
 
-                // Act 2: Use the factory to create an instance. This proves the .NET assembly and its
-                // dependencies can be found and its constructor can run without error.
+                // Act 2: Use the factory to create an instance. This proves dependencies are found.
                 classFactory.CreateInstance(null, ref iid, out comBridgeObject);
                 Assert.NotNull(comBridgeObject);
 
@@ -82,34 +79,28 @@ namespace MyCompany.Logging.Tests
                 ILoggingComBridge comBridge = (ILoggingComBridge)comBridgeObject;
 
                 // Act 4: Call a simple method to prove the object is alive and methods are callable.
-                string transactionId = comBridge.CreateTransactionId();
+                // BeginTrace is a perfect test case on the new API. It should return another COM object.
+                transaction = comBridge.BeginTrace("IntegrationTest", "test");
 
                 // Assert: The primary assertion is that the method call returned a valid result.
                 // This proves the entire pipeline worked: registration -> activation -> instantiation -> method invocation.
-                Assert.False(string.IsNullOrEmpty(transactionId));
-                Assert.Equal(32, transactionId.Length);
+                Assert.NotNull(transaction);
+                Assert.IsAssignableFrom<ILoggingTransaction>(transaction);
             }
             catch (COMException ex) when (ex.ErrorCode == unchecked((int)0x80040154)) // REGDB_E_CLASSNOTREG
             {
-                // This is a special, expected failure if the prerequisite (regasm) has not been run.
                 Assert.Fail($"The COM class is not registered. Please run `regasm.exe` on the ComBridge DLL. Details: {ex.Message}");
             }
             catch (Exception ex)
             {
-                // If we get here, it's a genuine unexpected failure (e.g., a constructor logic error, missing dependency).
                 Assert.Fail($"The COM integration test failed with an unexpected error. Original Exception: {ex}");
             }
             finally
             {
-                // Meticulous COM cleanup is required to release references.
-                if (comBridgeObject != null && Marshal.IsComObject(comBridgeObject))
-                {
-                    Marshal.ReleaseComObject(comBridgeObject);
-                }
-                if (classFactory != null && Marshal.IsComObject(classFactory))
-                {
-                    Marshal.ReleaseComObject(classFactory);
-                }
+                // Meticulous COM cleanup is required to release all references.
+                if (transaction is IDisposable d) d.Dispose();
+                if (comBridgeObject != null && Marshal.IsComObject(comBridgeObject)) Marshal.ReleaseComObject(comBridgeObject);
+                if (classFactory != null && Marshal.IsComObject(classFactory)) Marshal.ReleaseComObject(classFactory);
             }
         }
     }
