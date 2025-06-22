@@ -242,8 +242,18 @@ namespace MyCompany.Logging.Interop
         /// </summary>
         private Dictionary<string, object> ConvertComObjectToDictionary(object comObject)
         {
+            if (comObject == null) return new Dictionary<string, object>();
+
+            // PERFORMANCE FIX: Check if the object is already a .NET Dictionary. If so, use it directly.
+            // This provides a massive performance boost for .NET callers (like our benchmarks)
+            // while preserving the dynamic path for true COM objects from VB6.
+            if (comObject is Dictionary<string, object> netDict)
+            {
+                // We create a new dictionary to avoid modifying the caller's original collection.
+                return new Dictionary<string, object>(netDict);
+            }
+
             var dict = new Dictionary<string, object>();
-            if (comObject == null) return dict;
             try
             {
                 dynamic scriptDict = comObject;
