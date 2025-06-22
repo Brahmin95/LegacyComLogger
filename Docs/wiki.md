@@ -1,5 +1,4 @@
 ### **Wiki Page 1: Overview - The Modern Logging Framework**
-*(This would be the landing page for the "Logging Framework" section of your wiki)*
 
 # Overview: The Modern Logging Framework
 
@@ -55,7 +54,6 @@ graph TD
 
 ---
 ### **Wiki Page 2: Architectural Deep Dive**
-*(A child page of the Overview)*
 
 # Architectural Deep Dive
 
@@ -82,27 +80,27 @@ graph LR
     B --> D
     
     subgraph "Core Framework"
-        D -- "ILogger, LogManager" --> E{Provider-Agnostic Contract}
+        D -- "ILogger, ITracer, LogManager" --> E{Provider-Agnostic Contract}
     end
 
     subgraph "Implementation Layer"
-       F[MyCompany.Logging.NLogProvider] -- "Implements ILogger" --> E
+       F[MyCompany.Logging.NLogProvider] -- "Implements Contracts" --> E
     end
 
     style F fill:#f9f,stroke:#333,stroke-width:2px
 ```
 
--   **`MyCompany.Logging.Abstractions`**: This is the lightweight, central contract. It contains only interfaces (`ILogger`, `IInternalLogger`) and the static `LogManager`. It has **zero dependencies** on NLog or any other third-party library.
+-   **`MyCompany.Logging.Abstractions`**: This is the lightweight, central contract. It contains only interfaces (`ILogger`, `ITracer`) and the static `LogManager`. It has **zero dependencies** on NLog or any other third-party library.
 -   **`MyCompany.Logging.NLogProvider`**: This is the concrete implementation. It references the `Abstractions` project and contains all the NLog-specific code. It is responsible for all data enrichment, such as adding APM correlation IDs and translating VB6 error details into structured objects.
 -   **`MyCompany.Logging`**: This is a dedicated adapter for our VB6 clients. It is COM-visible and provides a simple, intuitive API for VB6 developers. Internally, it calls the abstract `ILogger` interface.
 
 ## 3. The Decoupling Mechanism: Runtime Initialization
 
 The key to the loose coupling is the static `LogManager.Initialize()` method.
--   An application (e.g., a WinForms `Program.cs` or the `ComBridge` constructor) calls `LogManager.Initialize("MyCompany.Logging.NLogProvider", ...)`.
--   The `LogManager` uses **`Assembly.Load()`** to load the provider DLL at runtime.
--   It then uses reflection to find and instantiate the `NLogLoggerFactory`.
--   This means the consuming application **never needs a compile-time reference** to `MyCompany.Logging.NLogProvider`, allowing the provider to be swapped out in the future by simply changing a configuration string.
+-   An application (e.g., a WinForms `Program.cs` or the `ComBridge` constructor) calls the simple `LogManager.Initialize(AppRuntime.DotNet)`.
+-   The `LogManager` uses internal configuration to find the provider assembly name (e.g., "MyCompany.Logging.NLogProvider").
+-   It then uses **`Assembly.Load()`** to load the provider DLL at runtime and reflection to find and instantiate the provider's factory and tracer classes.
+-   This means the consuming application **never needs a compile-time reference** to `MyCompany.Logging.NLogProvider`, allowing the provider to be swapped out in the future by changing the internal configuration in `LogManager`.
 
 ## 4. Developer Concerns: The Ambient Context "Backpack"
 
@@ -115,7 +113,6 @@ For VB6, which lacks modern context-propagation features, we built a robust "amb
 
 ---
 ### **Wiki Page 3: VB6 Logging - Usage and Examples**
-*(A child page of the Overview)*
 
 # VB6 Logging: Usage and Examples
 
@@ -148,7 +145,7 @@ g_Logger.Info "frmMain", "Form_Load", "Main application form loaded successfully
 
 ### Tracing a Unit of Work (The "Backpack") - BEST PRACTICE
 
-This is the **recommended pattern** for any significant user action. It creates a full trace, allowing you to see all related logs together in Kibana.
+This is the **recommended pattern** for any significant user action. It creates a full trace, allowing you to see all related logs together in Kibana. You should use the `TxType` enum constants provided by the framework.
 
 **Rule:** The object returned by `BeginTrace` or `BeginSpan` **MUST** be set to `Nothing` when the operation is complete to clean up the context. Always use the `On Error GoTo...Cleanup` pattern to guarantee this.
 
@@ -159,14 +156,15 @@ Public Sub cmdSave_Click()
     
     On Error GoTo Handle_Error
     
-    ' 1. START THE TRACE: This creates the trace.id and transaction.id.
-    Set trace = g_Logger.BeginTrace("SaveCustomerClick", "ui.interaction")
+    ' 1. START THE TRACE: Use the TxType enum for the transaction type.
+    ' (e.g., TxType_UserInteraction, TxType_Process)
+    Set trace = g_Logger.BeginTrace("SaveCustomerClick", TxType_UserInteraction)
 
     ' This log now has session, trace, and transaction IDs.
     g_Logger.Info "frmCustomer", "cmdSave_Click", "Save operation initiated by user."
     
     ' 2. START A SPAN: Measure a specific sub-operation.
-    Set dbSpan = g_Logger.BeginSpan("SaveToDatabase", "db.sql")
+    Set dbSpan = g_Logger.BeginSpan("SaveToDatabase", TxType_DataSearch)
     
         ' This log has session, trace, transaction, AND span IDs.
         g_Logger.Debug "frmCustomer", "cmdSave_Click", "Executing UPDATE statement."
@@ -198,44 +196,44 @@ End Sub
 
 ---
 ### **Wiki Page 4: .NET Logging - Usage and Examples**
-*(A child page of the Overview)*
 
-# .NET Logging: Usage and Examples
+# .NET Logging - Usage and Examples
 
 ## 1. How Correlation IDs Work in .NET
 
--   **`session.id` (The User Journey):** Just like in VB6, this is generated **automatically** when the application starts and is added to all logs from that process.
--   **`trace.id`, `transaction.id`, `span.id` (Tracing):** In .NET, these are managed **automatically by the Elastic APM Agent**. You do not need to call `BeginTrace` or `BeginSpan`. You simply tell the APM agent what constitutes a "transaction," and the logging framework automatically enriches all log messages created within that scope.
+-   **`session.id` (The User Journey):** This is generated **automatically** when the application starts and is added to all logs from that process.
+-   **`trace.id`, `transaction.id`, `span.id` (Tracing):** In .NET, these are now managed **by our framework's `ITracer` interface**. You no longer need a direct dependency on the APM agent. You simply wrap your code in a `LogManager.Tracer.Trace` call, and the framework handles creating the transaction and correlating all logs within that scope.
 
-## 2. Tracing with Elastic APM
+## 2. Tracing with the Logging Framework - BEST PRACTICE
 
-This is the standard pattern for .NET code. The logging framework is designed to integrate seamlessly.
+This is the standard, provider-agnostic pattern for .NET code.
 
 ```csharp
-using Elastic.Apm; // Add reference to the APM agent
 using MyCompany.Logging.Abstractions;
 
 public class OrderProcessor
 {
-    private static readonly ILogger logger = LogManager.GetCurrentClassLogger();
+    private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
     
     public void FulfillOrder(int orderId)
     {
-        // Use the APM agent to capture this entire method as a single transaction.
-        // The agent creates the trace.id and transaction.id.
-        Agent.Tracer.CaptureTransaction("FulfillOrder", "business.logic", (transaction) =>
+        // Use the framework's tracer to capture this method as a single transaction.
+        // This creates the trace.id and transaction.id. All logs inside the lambda
+        // will be automatically correlated.
+        LogManager.Tracer.Trace("FulfillOrder", TxType.Process, () =>
         {
             // This log will automatically have session, trace, and transaction IDs.
-            logger.Info("Fulfilling order {OrderId}", orderId);
+            _log.Info("Fulfilling order {OrderId}", orderId);
             
-            // Start a child span to measure a specific sub-operation.
-            transaction.CaptureSpan("NotifyShippingDept", "external.http", (span) =>
+            // To create a child span, you simply nest another Trace call.
+            // The framework handles the parent/child relationship automatically.
+            LogManager.Tracer.Trace("NotifyShippingDept", TxType.Process, () =>
             {
                 // This log will have session, trace, transaction, AND span IDs.
-                logger.Debug("Calling shipping department API for order {OrderId}", orderId);
+                _log.Debug("Calling shipping department API for order {OrderId}", orderId);
             });
             
-            logger.Info("Order {OrderId} fulfillment complete.", orderId);
+            _log.Info("Order {OrderId} fulfillment complete.", orderId);
         });
     }
 
@@ -247,9 +245,9 @@ public class OrderProcessor
         }
         catch (Exception ex)
         {
-            // If an APM transaction is active, this error log will be automatically
-            // correlated with it.
-            logger.Error(ex, "An error occurred while handling inventory.");
+            // If this code is running inside a LogManager.Tracer.Trace scope,
+            // this error log will be automatically correlated with it.
+            _log.Error(ex, "An error occurred while handling inventory.");
         }
     }
 }
@@ -257,7 +255,6 @@ public class OrderProcessor
 
 ---
 ### **Wiki Page 5: Post-Deployment Configuration & Analysis**
-*(A child page of the Overview)*
 
 # Post-Deployment Configuration & Analysis
 
@@ -298,6 +295,7 @@ To troubleshoot an issue, you can add a more specific rule **above** the default
   <logger name="*" minlevel="Info" writeTo="app-log-file" />
 </rules>
 ```
+
 3.  Save the file. The new logging level will take effect almost immediately. Once you are done troubleshooting, simply remove the temporary rule block and save the file again.
 
 ## 2. Analyzing Logs in Kibana and Elastic
@@ -325,7 +323,7 @@ All logs are enriched with correlation IDs, allowing for powerful analysis.
 
 ### Using the APM UI in Kibana
 
-For operations traced with the .NET APM agent or the VB6 `BeginTrace` method, you can use the APM UI:
+For operations traced with our framework's `LogManager.Tracer` or the VB6 `BeginTrace` method, you can use the APM UI:
 1.  Navigate to the **APM** section in Kibana.
 2.  Find your service (`MyCompany.PaymentService.exe` or `LegacyApp.exe`).
 3.  Click on a transaction (e.g., "FulfillOrder" or "SaveCustomerClick") to see the **transaction waterfall view**.
