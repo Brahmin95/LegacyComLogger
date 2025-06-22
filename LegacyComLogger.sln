@@ -12,19 +12,23 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowsFormsApp1", "WindowsFormsApp1\WindowsFormsApp1.csproj", "{624C7BAB-B5A3-450C-9073-B7DF3C8CF9AB}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Other", "Other", "{A334F397-CE0E-47ED-8238-28D11F39FC10}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deployment", "Deployment", "{30C8E2B8-CEB8-45B5-8A51-79B1F9CF5B9E}"
 	ProjectSection(SolutionItems) = preProject
-		Docs\Cleanup-AppLogs.ps1 = Docs\Cleanup-AppLogs.ps1
-		Docs\filebeat.yml = Docs\filebeat.yml
 		Docs\RegSvr32Wix.md = Docs\RegSvr32Wix.md
 		Docs\ScheduledTask.wxs = Docs\ScheduledTask.wxs
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentation", "{8608090D-3E5E-46FF-8B89-0A06F0F0388D}"
+	ProjectSection(SolutionItems) = preProject
 		Docs\wiki.md = Docs\wiki.md
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deployment", "Deployment", "{30C8E2B8-CEB8-45B5-8A51-79B1F9CF5B9E}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentation", "{8608090D-3E5E-46FF-8B89-0A06F0F0388D}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Maintenance", "Maintenance", "{3D7F9981-9B16-4A5A-BCB1-7810926E346C}"
+	ProjectSection(SolutionItems) = preProject
+		Docs\Cleanup-AppLogs.ps1 = Docs\Cleanup-AppLogs.ps1
+		Docs\filebeat.yml = Docs\filebeat.yml
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
