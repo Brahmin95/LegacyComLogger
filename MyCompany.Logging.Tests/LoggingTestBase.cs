@@ -63,23 +63,29 @@ namespace MyCompany.Logging.Tests
             tracerProperty?.SetValue(null, nullTracerInstance, null);
 
             // Reset the SafetyOverridePrompt delegate back to its default production implementation.
-            var promptDelegateProperty = logManagerType.GetProperty("SafetyOverridePrompt", BindingFlags.Public | BindingFlags.Static);
+            var promptDelegateProperty = logManagerType.GetProperty("SafetyOverridePrompt", BindingFlags.NonPublic | BindingFlags.Static);
             var defaultPromptMethod = logManagerType.GetMethod("ShowWindowsFormsDialog", BindingFlags.NonPublic | BindingFlags.Static);
             var defaultDelegate = Delegate.CreateDelegate(typeof(Func<string, bool>), defaultPromptMethod);
             promptDelegateProperty?.SetValue(null, defaultDelegate);
 
+            // Reset the internal static provider configuration fields to their production defaults.
+            logManagerType.GetField("ProviderAssemblyName", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, "MyCompany.Logging.NLogProvider");
+            logManagerType.GetField("FactoryFullTypeName", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, "MyCompany.Logging.NLogProvider.NLogLoggerFactory");
+            logManagerType.GetField("InternalLoggerFullTypeName", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, "MyCompany.Logging.NLogProvider.NLogInternalLogger");
+            logManagerType.GetField("InitializerFullTypeName", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, "MyCompany.Logging.NLogProvider.NLogInitializer");
+            logManagerType.GetField("TracerFullTypeName", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, "MyCompany.Logging.NLogProvider.ElasticApmTracer");
+
             // Reset our NLogInitializer's static _isInitialized flag to false.
-            var initializerIsInitializedField = typeof(NLogInitializer).GetField("_isInitialized", BindingFlags.NonPublic | BindingFlags.Static);
-            if (initializerIsInitializedField == null)
+            // Check for null in case the NLogProvider assembly isn't referenced by some test projects.
+            var nlogInitializerType = Type.GetType("MyCompany.Logging.NLogProvider.NLogInitializer, MyCompany.Logging.NLogProvider");
+            if (nlogInitializerType != null)
             {
-                throw new InvalidOperationException("Could not find the private static field '_isInitialized' in NLogInitializer.");
+                var initializerIsInitializedField = nlogInitializerType.GetField("_isInitialized", BindingFlags.NonPublic | BindingFlags.Static);
+                initializerIsInitializedField?.SetValue(null, false);
             }
-            initializerIsInitializedField.SetValue(null, false);
 
             // Reset NLog's own static state.
             NLog.LogManager.Configuration = null;
-
-            // Use the modern API to clear the global context for test isolation.
             NLog.GlobalDiagnosticsContext.Clear();
 
             // Clean up any environment variables set by tests.
@@ -90,8 +96,6 @@ namespace MyCompany.Logging.Tests
         /// A test-specific helper method to inject mock implementations into the static LogManager
         /// for unit testing purposes, bypassing the full reflection-based initialization.
         /// </summary>
-        /// <param name="factory">The mock ILoggerFactory to inject.</param>
-        /// <param name="internalLogger">The mock IInternalLogger to inject.</param>
         protected void InitializeWithMocks(ILoggerFactory factory, IInternalLogger internalLogger)
         {
             var logManagerType = typeof(LogManager);

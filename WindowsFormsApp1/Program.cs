@@ -25,7 +25,7 @@ namespace WindowsFormsApp1
 
         private static ILogger InitialiseLogging()
         {
-            LogManager.Initialize("MyCompany.Logging.NLogProvider", ApplicationEnvironment.DotNet);
+            LogManager.Initialize(AppRuntime.DotNet);
 
             ILogger _log = LogManager.GetLogger("Program");
 

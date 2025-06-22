@@ -1,4 +1,5 @@
 ﻿using MyCompany.Logging.Abstractions;
+using System;
 
 namespace MyCompany.Logging.NLogProvider
 {
@@ -11,10 +12,18 @@ namespace MyCompany.Logging.NLogProvider
         /// <summary>
         /// Initializes a new instance of the NLogLoggerFactory class.
         /// It hooks into the LogManager to provide a way to push context properties
-        /// into NLog's global context.
+        /// into NLog's global context. It also validates that NLog is configured.
         /// </summary>
         public NLogLoggerFactory()
         {
+            // Fail-fast: A logger factory should not be created if the underlying
+            // system is not properly configured. This also enables testing the
+            // partial-failure initialization path.
+            if (NLog.LogManager.Configuration == null)
+            {
+                throw new InvalidOperationException("NLog configuration is not loaded. The NLogLoggerFactory cannot be created.");
+            }
+
             // This delegate connects the abstract LogManager to the concrete NLog implementation.
             // We use GlobalDiagnosticsContext (GDC) because the properties we set (like service.name
             // and session.id) are global for the entire application process lifetime.

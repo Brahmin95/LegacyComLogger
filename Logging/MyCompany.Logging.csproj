@@ -140,13 +140,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Abstractions\ApplicationEnvironment.cs" />
     <Compile Include="Abstractions\IInternalLogger.cs" />
     <Compile Include="Abstractions\ILogger.cs" />
     <Compile Include="Abstractions\ITracer.cs" />
     <Compile Include="Abstractions\LogManager.cs" />
     <Compile Include="Abstractions\MinimalComTest.cs" />
     <Compile Include="Abstractions\TxType.cs" />
+    <Compile Include="AppRuntime.cs" />
     <Compile Include="Interop\ILoggingComBridge.cs" />
     <Compile Include="Interop\ILoggingTransaction.cs" />
     <Compile Include="Interop\LoggingComBridge.cs" />

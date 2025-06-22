@@ -47,7 +47,8 @@ namespace MyCompany.Logging.Interop
         {
             if (!LogManager.IsInitialized)
             {
-                LogManager.Initialize("MyCompany.Logging.NLogProvider", ApplicationEnvironment.Vb6);
+                // Call initialize with the correct runtime environment.
+                LogManager.Initialize(AppRuntime.Vb6);
             }
         }
 

@@ -1,11 +1,11 @@
 ﻿namespace MyCompany.Logging.Abstractions
 {
     /// <summary>
-    /// Defines the type of application environment initializing the logger.
+    /// Defines the type of application runtime initializing the logger.
     /// This is used by the LogManager to select the correct context configuration
     /// strategy (e.g., how to determine the application's name).
     /// </summary>
-    public enum ApplicationEnvironment
+    public enum AppRuntime
     {
         /// <summary>
         /// The logging framework is being used by a standard .NET application.

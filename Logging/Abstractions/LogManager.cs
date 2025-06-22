@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 
 // This attribute makes the internal members of this assembly visible to the test project,
-// allowing tests to set internal properties like LogManager.Tracer for mocking purposes.
+// allowing tests to modify internal state for testing purposes.
 [assembly: InternalsVisibleTo("MyCompany.Logging.Tests")]
 
 namespace MyCompany.Logging.Abstractions
@@ -31,6 +31,14 @@ namespace MyCompany.Logging.Abstractions
     /// </summary>
     public static class LogManager
     {
+        // Provider details are now internal static fields that hold the full type names,
+        // which is a more robust design.
+        internal static string ProviderAssemblyName = "MyCompany.Logging.NLogProvider";
+        internal static string FactoryFullTypeName = "MyCompany.Logging.NLogProvider.NLogLoggerFactory";
+        internal static string InternalLoggerFullTypeName = "MyCompany.Logging.NLogProvider.NLogInternalLogger";
+        internal static string InitializerFullTypeName = "MyCompany.Logging.NLogProvider.NLogInitializer";
+        internal static string TracerFullTypeName = "MyCompany.Logging.NLogProvider.ElasticApmTracer";
+
         private static ILoggerFactory _factory;
         private static readonly object _initializationLock = new object();
         private static readonly ConcurrentDictionary<string, object> _contextCache = new ConcurrentDictionary<string, object>();
@@ -40,17 +48,15 @@ namespace MyCompany.Logging.Abstractions
         /// </summary>
         static LogManager()
         {
-            // By default, the safety prompt uses a real Windows Forms MessageBox.
-            // Tests can override this delegate to prevent UI popups.
             SafetyOverridePrompt = ShowWindowsFormsDialog;
         }
 
         /// <summary>
         /// Gets or sets the delegate used to prompt the user during a critical, unrecoverable
-        /// initialization failure. This can be replaced in unit tests to prevent blocking UI dialogs.
-        /// The function should return `true` to proceed despite the error, or `false` to exit the application.
+        /// initialization failure. This is internal and exposed to the test assembly.
+        /// The function should return `true` to proceed, or `false` to exit the application.
         /// </summary>
-        public static Func<string, bool> SafetyOverridePrompt { get; set; }
+        internal static Func<string, bool> SafetyOverridePrompt { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether the main logger factory has been successfully initialized.
@@ -74,35 +80,29 @@ namespace MyCompany.Logging.Abstractions
 
         /// <summary>
         /// Gets or sets a delegate that allows the LogManager to push context properties
-        /// into the underlying logging provider (e.g., to NLog's MappedDiagnosticsLogicalContext).
-        /// This is set by the provider's ILoggerFactory during initialization.
+        /// into the underlying logging provider.
         /// </summary>
         public static Action<string, object> SetContextProperty { get; set; } = (key, value) => { };
 
         /// <summary>
-        /// Initializes the entire logging system by loading the specified provider assembly via reflection.
+        /// Initializes the entire logging system by loading the configured provider assembly.
         /// This is the primary entry point for any application using the framework.
         /// The call is idempotent; subsequent calls after a successful initialization will do nothing.
         /// </summary>
-        /// <param name="providerAssemblyName">The simple name of the logging provider assembly (e.g., "MyCompany.Logging.NLogProvider").</param>
-        /// <param name="environment">The type of application environment (DotNet or Vb6).</param>
-        public static void Initialize(string providerAssemblyName, ApplicationEnvironment environment)
+        /// <param name="environment">The type of application runtime (DotNet or Vb6).</param>
+        public static void Initialize(AppRuntime environment)
         {
-            // The main try-catch is now at the top level to handle ANY failure during initialization,
-            // including Assembly.Load or Type.GetType, which occur before the InternalLogger is created.
             try
             {
                 if (IsInitialized) return;
                 lock (_initializationLock)
                 {
                     if (IsInitialized) return;
-                    PerformInitialization(providerAssemblyName, environment);
+                    PerformInitialization(environment);
                 }
             }
             catch (Exception ex)
             {
-                // This is the absolute "last gasp" for error reporting. It is used if any part
-                // of the initialization fails, even before the real InternalLogger is available.
                 string fatalErrorMsg = "CRITICAL: The application's core logging system could not be initialized. " +
                                        "This is a severe configuration or deployment issue (e.g., missing DLLs or incorrect type names).\n\n" +
                                        "Exception: " + ex.Message;
@@ -113,7 +113,6 @@ namespace MyCompany.Logging.Abstractions
                 string userPrompt = fatalErrorMsg + "\n\nIt is strongly recommended that you DO NOT PROCEED and contact IT Support.\n\n" +
                                     "Do you wish to proceed anyway (NOT RECOMMENDED)?";
 
-                // Use the configurable delegate to show the prompt.
                 if (!SafetyOverridePrompt(userPrompt))
                 {
                     Environment.Exit(1);
@@ -123,46 +122,25 @@ namespace MyCompany.Logging.Abstractions
 
         /// <summary>
         /// The core logic for loading the provider assembly and instantiating its components.
-        /// This is wrapped by the public Initialize method's exception handling.
+        /// This is internal so it can be called directly by unit tests for failure simulation.
         /// </summary>
-        private static void PerformInitialization(string providerAssemblyName, ApplicationEnvironment environment)
+        internal static void PerformInitialization(AppRuntime environment)
         {
-            // These type names are part of the contract with any logging provider.
-            const string factoryTypeName = "NLogLoggerFactory";
-            const string internalLoggerTypeName = "NLogInternalLogger";
-            const string initializerTypeName = "NLogInitializer";
-            const string tracerTypeName = "ElasticApmTracer";
+            var assembly = Assembly.Load(ProviderAssemblyName);
+            var internalLoggerType = assembly.GetType(InternalLoggerFullTypeName, throwOnError: true);
+            var factoryType = assembly.GetType(FactoryFullTypeName, throwOnError: true);
+            var initializerType = assembly.GetType(InitializerFullTypeName, throwOnError: true);
+            var tracerType = assembly.GetType(TracerFullTypeName, throwOnError: true);
 
-            string factoryFullName = $"{providerAssemblyName}.{factoryTypeName}";
-            string internalLoggerFullName = $"{providerAssemblyName}.{internalLoggerTypeName}";
-            string initializerFullName = $"{providerAssemblyName}.{initializerTypeName}";
-            string tracerFullName = $"{providerAssemblyName}.{tracerTypeName}";
-
-            // The core of the decoupled design: load the provider at runtime. Any failure here
-            // will be caught by the top-level handler in the public Initialize method.
-            var assembly = Assembly.Load(providerAssemblyName);
-            var internalLoggerType = assembly.GetType(internalLoggerFullName, throwOnError: true);
-            var factoryType = assembly.GetType(factoryFullName, throwOnError: true);
-            var initializerType = assembly.GetType(initializerFullName, throwOnError: true);
-            var tracerType = assembly.GetType(tracerFullName, throwOnError: true);
-
-            // --- Bootstrap Phase: Internal Logger ---
-            // If this fails, the top-level handler will catch it.
             InternalLogger = (IInternalLogger)Activator.CreateInstance(internalLoggerType);
             InternalLogger.Info("Internal logger bootstrapped successfully.");
 
-            // --- Main Initialization Phase ---
-            // From this point on, we can log failures to the newly created InternalLogger.
             try
             {
-                // Create the factory that will produce ILogger instances.
                 _factory = (ILoggerFactory)Activator.CreateInstance(factoryType);
-
-                // Create the tracer that will handle APM transactions.
                 Tracer = (ITracer)Activator.CreateInstance(tracerType);
 
-                // Dynamically invoke the correct static configuration method based on the environment.
-                string methodName = environment == ApplicationEnvironment.Vb6 ? "ConfigureVb6Context" : "ConfigureDotNetContext";
+                string methodName = environment == AppRuntime.Vb6 ? "ConfigureVb6Context" : "ConfigureDotNetContext";
                 var configureMethod = initializerType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
                 configureMethod?.Invoke(null, null);
 
@@ -170,59 +148,31 @@ namespace MyCompany.Logging.Abstractions
             }
             catch (Exception ex)
             {
-                // If the main factory fails but bootstrap succeeded, we log to the internal logger.
                 InternalLogger.Fatal("FATAL BOOTSTRAP ERROR: Could not create or configure the main LoggerFactory or Tracer.", ex);
-                // We re-throw so the top-level handler displays the error to the user.
                 throw;
             }
         }
 
-        /// <summary>
-        /// Sets a global context property that can be used by the logging provider.
-        /// This caches the value locally and pushes it to the provider via the SetContextProperty delegate.
-        /// </summary>
-        /// <param name="key">The property key.</param>
-        /// <param name="value">The property value.</param>
         public static void SetAbstractedContextProperty(string key, object value)
         {
             _contextCache[key] = value;
             SetContextProperty?.Invoke(key, value);
         }
 
-        /// <summary>
-        /// Gets a global context property from the local cache.
-        /// </summary>
-        /// <param name="key">The property key.</param>
-        /// <returns>The cached value, or null if not found.</returns>
         public static object GetAbstractedContextProperty(string key)
         {
             _contextCache.TryGetValue(key, out var value);
             return value;
         }
 
-        /// <summary>
-        /// Gets a logger instance with the specified name. If the framework is not initialized,
-        /// it returns a resilient NullLogger that safely does nothing.
-        /// </summary>
-        /// <param name="name">The name of the logger (e.g., a class name or module name).</param>
-        /// <returns>An ILogger implementation.</returns>
         public static ILogger GetLogger(string name) => _factory?.GetLogger(name) ?? new NullLogger();
 
-        /// <summary>
-        /// Gets a logger for the current class, automatically using the class's full name as the logger name.
-        /// </summary>
-        /// <returns>An ILogger instance named after the calling class.</returns>
         public static ILogger GetCurrentClassLogger()
         {
-            // A helper to simplify getting a logger in .NET code.
-            // StackFrame(1) gets the info of the method that called this one.
             string className = new StackFrame(1, false).GetMethod().DeclaringType.FullName;
             return GetLogger(className);
         }
 
-        /// <summary>
-        /// Writes a message to the Windows Event Log as a fallback mechanism.
-        /// </summary>
         private static void WriteToEventLog(string message)
         {
             try
@@ -236,21 +186,16 @@ namespace MyCompany.Logging.Abstractions
             }
             catch (Exception ex)
             {
-                // This can fail due to permissions. Our last resort is Trace.
                 Trace.WriteLine($"FATAL: Failed to write to Windows Event Log. Exception: {ex.Message}");
             }
         }
 
-        /// <summary>
-        /// The default, production implementation of the safety prompt that shows a real dialog.
-        /// </summary>
         private static bool ShowWindowsFormsDialog(string message)
         {
             try
             {
-                // Requires a reference to System.Windows.Forms.
                 var result = System.Windows.Forms.MessageBox.Show(
-                    message, "Critical Logging Failure - You can use the system, but no diagnostic logs will be available.",
+                    message, "Critical Logging Failure - Proceed with caution",
                     System.Windows.Forms.MessageBoxButtons.YesNo,
                     System.Windows.Forms.MessageBoxIcon.Error,
                     System.Windows.Forms.MessageBoxDefaultButton.Button2
@@ -259,16 +204,11 @@ namespace MyCompany.Logging.Abstractions
             }
             catch (Exception ex)
             {
-                // This can fail in non-interactive sessions. Default to the safe option.
                 Trace.WriteLine($"FATAL: Failed to show choice dialog. Defaulting to NOT proceed. Exception: {ex.Message}");
                 return false;
             }
         }
 
-        /// <summary>
-        /// A logger implementation that performs no operations. This is returned by the LogManager
-        /// before initialization is complete to prevent NullReferenceExceptions in consumer code.
-        /// </summary>
         private class NullLogger : ILogger
         {
             public void Trace(string mt, params object[] a) { }
@@ -285,9 +225,6 @@ namespace MyCompany.Logging.Abstractions
             public void Fatal(string m, Exception ex = null, System.Collections.Generic.Dictionary<string, object> p = null) { }
         }
 
-        /// <summary>
-        /// An internal logger that performs no operations, used before the bootstrap is complete.
-        /// </summary>
         private class NullInternalLogger : IInternalLogger
         {
             public void Trace(string message, Exception exception = null) { }
@@ -298,10 +235,6 @@ namespace MyCompany.Logging.Abstractions
             public void Fatal(string message, Exception exception = null) { }
         }
 
-        /// <summary>
-        /// An ITracer implementation that performs no operations. This is returned by the LogManager
-        /// before initialization is complete to prevent NullReferenceExceptions in consumer code.
-        /// </summary>
         private class NullTracer : ITracer
         {
             public void Trace(string name, TxType type, Action action) => action?.Invoke();
