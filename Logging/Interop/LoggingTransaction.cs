@@ -2,7 +2,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace MyCompany.Logging.ComBridge
+namespace MyCompany.Logging.Interop
 {
     /// <summary>
     /// The concrete implementation of a scoped logging transaction handle. This object is
@@ -12,7 +12,7 @@ namespace MyCompany.Logging.ComBridge
     [ComVisible(true)]
     [Guid("C3D4E5F6-A7B8-4c9d-0e1f-2345678901CD")]
     [ClassInterface(ClassInterfaceType.None)]
-    [ProgId("MyCompany.Logging.ComBridge.LoggingTransaction")]
+    [ProgId("MyCompany.Logging.Interop.LoggingTransaction")]
     public class LoggingTransaction : ILoggingTransaction, IDisposable
     {
         private readonly Action _disposeCallback;

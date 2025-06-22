@@ -1,6 +1,6 @@
 ﻿using Moq;
 using MyCompany.Logging.Abstractions;
-using MyCompany.Logging.ComBridge;
+using MyCompany.Logging.Interop;
 using MyCompany.Logging.NLogProvider;
 using NLog.Config;
 using System;

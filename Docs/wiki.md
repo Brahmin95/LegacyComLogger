@@ -73,7 +73,7 @@ The solution is divided into three key projects, each with a distinct responsibi
 ```mermaid
 graph LR
     subgraph "Consumer Layer (VB6)"
-        A[VB6 App] --> B[MyCompany.Logging.ComBridge]
+        A[VB6 App] --> B[MyCompany.Logging.Interop]
     end
     subgraph "Consumer Layer (.NET)"
         C[.NET App] --> D[MyCompany.Logging.Abstractions]
@@ -94,7 +94,7 @@ graph LR
 
 -   **`MyCompany.Logging.Abstractions`**: This is the lightweight, central contract. It contains only interfaces (`ILogger`, `IInternalLogger`) and the static `LogManager`. It has **zero dependencies** on NLog or any other third-party library.
 -   **`MyCompany.Logging.NLogProvider`**: This is the concrete implementation. It references the `Abstractions` project and contains all the NLog-specific code. It is responsible for all data enrichment, such as adding APM correlation IDs and translating VB6 error details into structured objects.
--   **`MyCompany.Logging.ComBridge`**: This is a dedicated adapter for our VB6 clients. It is COM-visible and provides a simple, intuitive API for VB6 developers. Internally, it calls the abstract `ILogger` interface.
+-   **`MyCompany.Logging`**: This is a dedicated adapter for our VB6 clients. It is COM-visible and provides a simple, intuitive API for VB6 developers. Internally, it calls the abstract `ILogger` interface.
 
 ## 3. The Decoupling Mechanism: Runtime Initialization
 

@@ -4,11 +4,11 @@ The best and most reliable way to register a COM component with WiX is to **avoi
 
 **Step 1: Generate the WiX Fragment with `heat.exe`**
 1.  Open a command prompt (the "Developer Command Prompt for VS" is best).
-2.  Navigate to your `MyCompany.Logging.ComBridge` project's output directory (e.g., `bin\Debug`).
+2.  Navigate to your `MyCompany.Logging` project's output directory (e.g., `bin\Debug`).
 3.  Run the `heat.exe` command. `heat.exe` is located in your WiX Toolset's `bin` folder.
 
     ```cmd
-    "C:\Program Files (x86)\WiX Toolset v3.11\bin\heat.exe" file MyCompany.Logging.ComBridge.dll -dr INSTALLFOLDER -cg ComBridgeComponents -var var.SourceDir -out ComBridgeRegistry.wxs
+    "C:\Program Files (x86)\WiX Toolset v3.11\bin\heat.exe" file MyCompany.Logging.dll -dr INSTALLFOLDER -cg ComBridgeComponents -var var.SourceDir -out ComBridgeRegistry.wxs
     ```
     *   `file ...dll`: The DLL to inspect.
     *   `-dr INSTALLFOLDER`: The directory ID where this DLL will be installed.
@@ -25,8 +25,8 @@ The best and most reliable way to register a COM component with WiX is to **avoi
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
     <Fragment>
         <DirectoryRef Id="INSTALLFOLDER">
-            <Component Id="MyCompany.Logging.ComBridge.dll" Guid="PUT-GUID-HERE">
-                <File Id="MyCompany.Logging.ComBridge.dll" KeyPath="yes" Source="$(var.SourceDir)\MyCompany.Logging.ComBridge.dll" />
+            <Component Id="MyCompany.Logging.dll" Guid="PUT-GUID-HERE">
+                <File Id="MyCompany.Logging.dll" KeyPath="yes" Source="$(var.SourceDir)\MyCompany.Logging.dll" />
                 <RegistryValue Root="HKCR" Key="CLSID\{F9E8D7C6-B5A4-4b3c-2a1b-9876543210FE}" ... />
                 <RegistryValue Root="HKCR" Key="CLSID\{F9E8D7C6-B5A4-4b3c-2a1b-9876543210FE}\InprocServer32" ... />
                 <!-- Many more registry keys... -->
@@ -35,7 +35,7 @@ The best and most reliable way to register a COM component with WiX is to **avoi
     </Fragment>
     <Fragment>
         <ComponentGroup Id="ComBridgeComponents">
-            <ComponentRef Id="MyCompany.Logging.ComBridge.dll" />
+            <ComponentRef Id="MyCompany.Logging.dll" />
         </ComponentGroup>
     </Fragment>
 </Wix>

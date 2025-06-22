@@ -1,7 +1,7 @@
 ﻿using System; // Required for IDisposable
 using System.Runtime.InteropServices;
 
-namespace MyCompany.Logging.ComBridge
+namespace MyCompany.Logging.Interop
 {
     /// <summary>
     /// Defines a COM-visible object that represents a single, scoped logging transaction or span.

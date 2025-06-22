@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace MyCompany.Logging.ComBridge
+namespace MyCompany.Logging.Interop
 {
     /// <summary>
     /// Represents a structured error that originated from the VB6 part of the application.

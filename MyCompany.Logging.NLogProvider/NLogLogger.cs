@@ -1,5 +1,5 @@
 ﻿using MyCompany.Logging.Abstractions;
-using MyCompany.Logging.ComBridge;
+using MyCompany.Logging.Interop;
 using NLog;
 using System;
 using System.Collections.Generic;

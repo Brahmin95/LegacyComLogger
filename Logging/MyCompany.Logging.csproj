@@ -7,8 +7,8 @@
     <ProjectGuid>{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>MyCompany</RootNamespace>
-    <AssemblyName>MyCompany</AssemblyName>
+    <RootNamespace>MyCompany.Logging</RootNamespace>
+    <AssemblyName>MyCompany.Logging</AssemblyName>
     <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -140,21 +140,22 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Logging\Abstractions\ApplicationEnvironment.cs" />
-    <Compile Include="Logging\Abstractions\IInternalLogger.cs" />
-    <Compile Include="Logging\Abstractions\ILogger.cs" />
-    <Compile Include="Logging\Abstractions\LogManager.cs" />
-    <Compile Include="Logging\Abstractions\MinimalComTest.cs" />
-    <Compile Include="Logging\ComBridge\ILoggingComBridge.cs" />
-    <Compile Include="Logging\ComBridge\ILoggingTransaction.cs" />
-    <Compile Include="Logging\ComBridge\LoggingComBridge.cs" />
-    <Compile Include="Logging\ComBridge\LoggingTransaction.cs" />
-    <Compile Include="Logging\ComBridge\VBErrorException.cs" />
+    <Compile Include="Abstractions\ApplicationEnvironment.cs" />
+    <Compile Include="Abstractions\IInternalLogger.cs" />
+    <Compile Include="Abstractions\ILogger.cs" />
+    <Compile Include="Abstractions\LogManager.cs" />
+    <Compile Include="Abstractions\MinimalComTest.cs" />
+    <Compile Include="Interop\ILoggingComBridge.cs" />
+    <Compile Include="Interop\ILoggingTransaction.cs" />
+    <Compile Include="Interop\LoggingComBridge.cs" />
+    <Compile Include="Interop\LoggingTransaction.cs" />
+    <Compile Include="Interop\VBErrorException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

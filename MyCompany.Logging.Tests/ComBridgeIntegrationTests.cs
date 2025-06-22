@@ -1,4 +1,4 @@
-﻿using MyCompany.Logging.ComBridge;
+﻿using MyCompany.Logging.Interop;
 using System;
 using System.Runtime.InteropServices;
 using Xunit;
@@ -11,7 +11,7 @@ namespace MyCompany.Logging.Tests
     /// It uses low-level COM activation to ensure a true COM object is created and tested,
     /// mimicking how a VB6 application would consume it.
     /// 
-    /// PREREQUISITE: For this test to pass, the MyCompany.Logging.ComBridge.dll must have been
+    /// PREREQUISITE: For this test to pass, the MyCompany.Logging.Interop.dll must have been
     /// successfully registered with the system using `regasm.exe`. This is typically done
     /// in a post-build event or a setup script.
     /// </summary>

@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.33328.57
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCompany", "Logging\MyCompany.csproj", "{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCompany.Logging", "Logging\MyCompany.Logging.csproj", "{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCompany.Logging.NLogProvider", "MyCompany.Logging.NLogProvider\MyCompany.Logging.NLogProvider.csproj", "{13014B38-83BE-44FB-BCBB-650BD31D3375}"
 EndProject

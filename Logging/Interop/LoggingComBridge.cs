@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 
-namespace MyCompany.Logging.ComBridge
+namespace MyCompany.Logging.Interop
 {
     /// <summary>
     /// A private helper class to hold the scope data for a single trace or span.
@@ -31,7 +31,7 @@ namespace MyCompany.Logging.ComBridge
     [ComVisible(true)]
     [Guid("F9E8D7C6-B5A4-4b3c-2a1b-9876543210FE")]
     [ClassInterface(ClassInterfaceType.None)]
-    [ProgId("MyCompany.Logging.ComBridge.LoggingComBridge")]
+    [ProgId("MyCompany.Logging.Interop.LoggingComBridge")]
     public class LoggingComBridge : ILoggingComBridge
     {
         // The "Backpack": A thread-static stack to hold the hierarchy of scopes for each thread.

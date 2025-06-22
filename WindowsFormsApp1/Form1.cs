@@ -2,7 +2,7 @@
 using System.Windows.Forms;
 using MyCompany.Logging;
 using MyCompany.Logging.Abstractions;
-using MyCompany.Logging.ComBridge;
+using MyCompany.Logging.Interop;
 using Scripting;
 using System.Diagnostics;
 using System.IO;

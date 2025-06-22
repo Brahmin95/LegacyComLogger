@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace MyCompany.Logging.ComBridge
+namespace MyCompany.Logging.Interop
 {
     /// <summary>
     /// Defines the COM-visible interface for the logging bridge. This is the public API

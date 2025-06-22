@@ -1,6 +1,6 @@
 ﻿using Moq;
 using MyCompany.Logging.Abstractions;
-using MyCompany.Logging.ComBridge;
+using MyCompany.Logging.Interop;
 using System;
 using System.Collections.Generic;
 using Xunit;
