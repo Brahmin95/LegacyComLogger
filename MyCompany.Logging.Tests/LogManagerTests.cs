@@ -119,27 +119,35 @@ namespace MyCompany.Logging.Tests
         }
 
         /// <summary>
-        /// Verifies that if initialization fails due to a missing assembly, the failure is
-        /// caught and does not throw an unhandled exception, proving the top-level error handling works.
+        /// Verifies that if initialization fails due to a missing assembly, the safety prompt delegate
+        /// is invoked and the framework remains uninitialized.
         /// </summary>
         [Fact]
-        public void Initialize_WithInvalidProvider_DoesNotThrow()
+        public void Initialize_WithInvalidProvider_InvokesSafetyPromptAndDoesNotInitialize()
         {
             // Arrange
-            // This test verifies that the try-catch block within LogManager.Initialize is effective.
-            var exception = Record.Exception(() =>
+            bool wasPromptCalled = false;
+            string capturedMessage = null;
+
+            // Override the production UI dialog with a mock delegate for this test.
+            // We simulate the user choosing "Yes, proceed" to prevent Environment.Exit(1).
+            LogManager.SafetyOverridePrompt = (message) =>
             {
-                // Act
-                // We call initialize with a deliberately invalid assembly name that will cause
-                // Assembly.Load to throw a FileNotFoundException.
-                LogManager.Initialize("Invalid.Assembly.Name.That.Does.NotExist", ApplicationEnvironment.DotNet);
-            });
+                wasPromptCalled = true;
+                capturedMessage = message;
+                return true; // Simulate user clicking "Yes" to proceed.
+            };
+
+            // Act
+            // We call initialize with a deliberately invalid assembly name that will cause
+            // Assembly.Load to throw a FileNotFoundException, triggering the failure logic.
+            LogManager.Initialize("Invalid.Assembly.Name.That.Does.NotExist", ApplicationEnvironment.DotNet);
 
             // Assert
-            // The most important assertion is that no exception bubbled up and crashed the test.
-            // This proves the top-level try-catch in LogManager.Initialize() is working as designed.
-            Assert.Null(exception);
-            Assert.False(LogManager.IsInitialized);
+            Assert.True(wasPromptCalled, "The safety prompt delegate should have been called.");
+            Assert.Contains("CRITICAL", capturedMessage);
+            Assert.Contains("could not be initialized", capturedMessage);
+            Assert.False(LogManager.IsInitialized, "The LogManager should not be in an initialized state after a critical failure.");
         }
     }
 }

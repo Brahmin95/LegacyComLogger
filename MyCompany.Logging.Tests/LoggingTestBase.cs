@@ -62,6 +62,12 @@ namespace MyCompany.Logging.Tests
             var nullTracerInstance = Activator.CreateInstance(nullTracerType);
             tracerProperty?.SetValue(null, nullTracerInstance, null);
 
+            // Reset the SafetyOverridePrompt delegate back to its default production implementation.
+            var promptDelegateProperty = logManagerType.GetProperty("SafetyOverridePrompt", BindingFlags.Public | BindingFlags.Static);
+            var defaultPromptMethod = logManagerType.GetMethod("ShowWindowsFormsDialog", BindingFlags.NonPublic | BindingFlags.Static);
+            var defaultDelegate = Delegate.CreateDelegate(typeof(Func<string, bool>), defaultPromptMethod);
+            promptDelegateProperty?.SetValue(null, defaultDelegate);
+
             // Reset our NLogInitializer's static _isInitialized flag to false.
             var initializerIsInitializedField = typeof(NLogInitializer).GetField("_isInitialized", BindingFlags.NonPublic | BindingFlags.Static);
             if (initializerIsInitializedField == null)

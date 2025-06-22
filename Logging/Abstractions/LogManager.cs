@@ -36,6 +36,23 @@ namespace MyCompany.Logging.Abstractions
         private static readonly ConcurrentDictionary<string, object> _contextCache = new ConcurrentDictionary<string, object>();
 
         /// <summary>
+        /// Initializes static members of the LogManager class.
+        /// </summary>
+        static LogManager()
+        {
+            // By default, the safety prompt uses a real Windows Forms MessageBox.
+            // Tests can override this delegate to prevent UI popups.
+            SafetyOverridePrompt = ShowWindowsFormsDialog;
+        }
+
+        /// <summary>
+        /// Gets or sets the delegate used to prompt the user during a critical, unrecoverable
+        /// initialization failure. This can be replaced in unit tests to prevent blocking UI dialogs.
+        /// The function should return `true` to proceed despite the error, or `false` to exit the application.
+        /// </summary>
+        public static Func<string, bool> SafetyOverridePrompt { get; set; }
+
+        /// <summary>
         /// Gets a value indicating whether the main logger factory has been successfully initialized.
         /// </summary>
         public static bool IsInitialized => _factory != null;
@@ -96,7 +113,8 @@ namespace MyCompany.Logging.Abstractions
                 string userPrompt = fatalErrorMsg + "\n\nIt is strongly recommended that you DO NOT PROCEED and contact IT Support.\n\n" +
                                     "Do you wish to proceed anyway (NOT RECOMMENDED)?";
 
-                if (!AskUserToOverrideSafetyRecommendation(userPrompt))
+                // Use the configurable delegate to show the prompt.
+                if (!SafetyOverridePrompt(userPrompt))
                 {
                     Environment.Exit(1);
                 }
@@ -224,15 +242,15 @@ namespace MyCompany.Logging.Abstractions
         }
 
         /// <summary>
-        /// Shows a non-blocking dialog to the user during critical initialization failure.
+        /// The default, production implementation of the safety prompt that shows a real dialog.
         /// </summary>
-        private static bool AskUserToOverrideSafetyRecommendation(string message)
+        private static bool ShowWindowsFormsDialog(string message)
         {
             try
             {
                 // Requires a reference to System.Windows.Forms.
                 var result = System.Windows.Forms.MessageBox.Show(
-                    message, "Critical Logging Failure - Proceed with caution",
+                    message, "Critical Logging Failure - You can use the system, but no diagnostic logs will be available.",
                     System.Windows.Forms.MessageBoxButtons.YesNo,
                     System.Windows.Forms.MessageBoxIcon.Error,
                     System.Windows.Forms.MessageBoxDefaultButton.Button2
