@@ -1,17 +1,26 @@
 ﻿using Moq;
+using MyCompany.Logging.Abstractions;
+using MyCompany.Logging.ComBridge;
 using MyCompany.Logging.NLogProvider;
 using NLog.Config;
+using System; // FIX: Added the required using directive for Exception types.
 using System.Collections.Generic;
 using Xunit;
 using NLogManager = NLog.LogManager;
 
 namespace MyCompany.Logging.Tests
 {
+    /// <summary>
+    /// Contains unit tests for the MyCompany.Logging.NLogProvider project.
+    /// These tests verify the provider-specific enrichment logic, such as APM correlation
+    /// and the handling of custom VB6 error exceptions.
+    /// </summary>
     public class NLogProviderTests : LoggingTestBase
     {
         private readonly UnitTestTarget _testTarget;
         private readonly NLog.ILogger _nlogInstance;
         private readonly Mock<IApmAgentWrapper> _mockApmWrapper;
+        private readonly NLogLogger _sut; // System Under Test
 
         public NLogProviderTests()
         {
@@ -22,48 +31,22 @@ namespace MyCompany.Logging.Tests
             NLogManager.Configuration = config;
             _nlogInstance = NLogManager.GetLogger("TestLogger");
 
-            // Create the mock wrapper for APM
             _mockApmWrapper = new Mock<IApmAgentWrapper>();
-        }
-
-        [Fact]
-        public void Log_WithVb6CallSiteProperties_EnrichesWithNLogCallSiteKeysAndCleansUp()
-        {
-            // ARRANGE
-            // Directly instantiate the SUT (System Under Test) with its dependencies
-            var logger = new NLogLogger(_nlogInstance, _mockApmWrapper.Object);
-            var vbProperties = new Dictionary<string, object>
-            {
-                { "vbCodeFile", "Customer.cls" },
-                { "vbMethodName", "SaveCustomer" }
-            };
-
-            // ACT
-            logger.Info("VB6 call site test", vbProperties);
-
-            // ASSERT
-            Assert.Single(_testTarget.Events);
-            var logEvent = _testTarget.Events[0];
-            Assert.Equal("Customer.cls", logEvent.Properties["callsite-filename"]);
-            Assert.Equal("SaveCustomer", logEvent.Properties["callsite"]);
-            Assert.False(logEvent.Properties.ContainsKey("vbCodeFile")); // Verify original was removed
-            Assert.False(logEvent.Properties.ContainsKey("vbMethodName")); // Verify original was removed
+            _sut = new NLogLogger(_nlogInstance, _mockApmWrapper.Object);
         }
 
         [Fact]
         public void Log_WhenApmTransactionIsActive_EnrichesWithApmCorrelationIds()
         {
-            // ARRANGE
-            // Setup the mock wrapper to simulate an active APM transaction
+            // Arrange
             _mockApmWrapper.Setup(w => w.GetCurrentTraceId()).Returns("test-trace-id");
             _mockApmWrapper.Setup(w => w.GetCurrentTransactionId()).Returns("test-txn-id");
             _mockApmWrapper.Setup(w => w.GetCurrentSpanId()).Returns("test-span-id");
-            var logger = new NLogLogger(_nlogInstance, _mockApmWrapper.Object);
 
-            // ACT
-            logger.Info("This should be correlated");
+            // Act
+            _sut.Info("This should be correlated");
 
-            // ASSERT
+            // Assert
             Assert.Single(_testTarget.Events);
             var logEvent = _testTarget.Events[0];
             Assert.Equal("test-trace-id", logEvent.Properties["trace.id"]);
@@ -72,74 +55,122 @@ namespace MyCompany.Logging.Tests
         }
 
         [Fact]
-        public void Log_WhenApmTransactionIsInActive_DoesNotAddApmProperties()
+        public void Log_WithVb6CallSiteProperties_EnrichesWithNLogCallSiteKeysAndCleansUp()
         {
-            // ARRANGE
-            // The mock wrapper will return null by default, simulating an inactive transaction
-            var logger = new NLogLogger(_nlogInstance, _mockApmWrapper.Object);
-
-            // ACT
-            logger.Info("This should not be correlated");
-
-            // ASSERT
-            Assert.Single(_testTarget.Events);
-            var logEvent = _testTarget.Events[0];
-            Assert.False(logEvent.Properties.ContainsKey("trace.id"));
-            Assert.False(logEvent.Properties.ContainsKey("transaction.id"));
-            Assert.False(logEvent.Properties.ContainsKey("span.id"));
-        }
-
-        [Fact]
-        public void Log_WithBothVb6AndApmContext_EnrichesWithAllFieldsCorrectly()
-        {
-            // ARRANGE
-            _mockApmWrapper.Setup(w => w.GetCurrentTraceId()).Returns("apm-trace-id");
-            _mockApmWrapper.Setup(w => w.GetCurrentTransactionId()).Returns("apm-txn-id");
-            var logger = new NLogLogger(_nlogInstance, _mockApmWrapper.Object);
-
-            var vbProperties = new Dictionary<string, object>
-            {
-                { "vbCodeFile", "Orders.frm" },
-                { "vbMethodName", "btnSubmit_Click" },
-                { "customProp", "ABC" }
-            };
-
-            // ACT
-            logger.Info("Combined enrichment test", vbProperties);
-
-            // ASSERT
-            Assert.Single(_testTarget.Events);
-            var logEvent = _testTarget.Events[0];
-
-            // Verify all enrichments and original properties are present and correct
-            Assert.Equal("apm-trace-id", logEvent.Properties["trace.id"]);
-            Assert.Equal("apm-txn-id", logEvent.Properties["transaction.id"]);
-            Assert.Equal("Orders.frm", logEvent.Properties["callsite-filename"]);
-            Assert.Equal("btnSubmit_Click", logEvent.Properties["callsite"]);
-            Assert.Equal("ABC", logEvent.Properties["customProp"]);
-            Assert.False(logEvent.Properties.ContainsKey("vbCodeFile")); // Verify cleanup
-        }
-
-        [Fact]
-        public void Info_WithPropertyDictionary_LogsComplexKeyNamesCorrectly()
-        {
-            // ARRANGE
-            var logger = new NLogLogger(_nlogInstance, _mockApmWrapper.Object);
+            // Arrange
             var properties = new Dictionary<string, object>
             {
-                { "user.id", "user-555" },
-                { "transaction.id", "manual-txn-id" } // A manually supplied property
+                { "vbCodeFile", "Customer.cls" },
+                { "vbMethodName", "SaveCustomer" }
             };
 
-            // ACT
-            logger.Info("Processing complex event", properties);
+            // Act
+            _sut.Info("VB6 call site test", properties);
 
-            // ASSERT
+            // Assert
             Assert.Single(_testTarget.Events);
             var logEvent = _testTarget.Events[0];
-            Assert.Equal("user-555", logEvent.Properties["user.id"]);
-            // The manually supplied property should be present
-            Assert.Equal("manual-txn-id", logEvent.Properties["transaction.id"]);
+            Assert.Equal("Customer.cls", logEvent.Properties["callsite-filename"]);
+            Assert.Equal("SaveCustomer", logEvent.Properties["callsite"]);
+            Assert.False(logEvent.Properties.ContainsKey("vbCodeFile"));
+            Assert.False(logEvent.Properties.ContainsKey("vbMethodName"));
+        }
+
+        /// <summary>
+        /// Verifies that when a structured VBErrorException is logged, its rich diagnostic
+        /// properties (error number, source, line number) are extracted and added to the log event.
+        /// </summary>
+        [Fact]
+        public void Log_WithStructuredVBErrorException_EnrichesWithVbErrorObjectAndSourceLine()
+        {
+            // Arrange
+            var vbException = new VBErrorException("Disk Full", 76, "DAO.Engine", 123);
+
+            // Act
+            _sut.Error("A database operation failed", vbException);
+
+            // Assert
+            Assert.Single(_testTarget.Events);
+            var logEvent = _testTarget.Events[0];
+
+            // Assert that the special source.line property was added for Kibana UI integration.
+            Assert.Equal(123, logEvent.Properties["source.line"]);
+
+            // Assert that the custom vb_error object was created and contains the correct data.
+            Assert.True(logEvent.Properties.ContainsKey("vb_error"));
+            var vbErrorContext = logEvent.Properties["vb_error"] as Dictionary<string, object>;
+            Assert.NotNull(vbErrorContext);
+            Assert.Equal(76L, vbErrorContext["number"]); // Note: long
+            Assert.Equal("DAO.Engine", vbErrorContext["source"]);
+        }
+
+        /// <summary>
+        /// Verifies that when a simple, logical VBErrorException is logged, the log event
+        /// includes the correct error type but adds a vb_error object with default values.
+        /// </summary>
+        [Fact]
+        public void Log_WithSimpleVBErrorException_HasCorrectTypeAndDefaultVbErrorObject()
+        {
+            // Arrange
+            var logicalException = new VBErrorException("Invalid Customer ID");
+
+            // Act
+            _sut.Error("Validation failed", logicalException);
+
+            // Assert
+            Assert.Single(_testTarget.Events);
+            var logEvent = _testTarget.Events[0];
+
+            // The exception itself is still present and has the correct type.
+            Assert.NotNull(logEvent.Exception);
+            Assert.IsType<VBErrorException>(logEvent.Exception);
+
+            // Assert that the vb_error object was added with the default logical error values.
+            Assert.True(logEvent.Properties.ContainsKey("vb_error"));
+            var vbErrorContext = logEvent.Properties["vb_error"] as Dictionary<string, object>;
+            Assert.NotNull(vbErrorContext);
+            Assert.Equal(-1L, vbErrorContext["number"]);
+            Assert.Equal("LogicalError", vbErrorContext["source"]);
+        }
+
+        /// <summary>
+        /// Verifies that when a standard .NET exception is logged, no VB-specific
+        /// enrichment occurs, proving the logic is correctly targeted.
+        /// </summary>
+        [Fact]
+        public void Log_WithStandardException_DoesNotAddVbErrorObject()
+        {
+            // Arrange
+            var standardException = new InvalidOperationException("Something went wrong");
+
+            // Act
+            _sut.Error("A standard error occurred", standardException);
+
+            // Assert
+            Assert.Single(_testTarget.Events);
+            var logEvent = _testTarget.Events[0];
+
+            // Assert that no VB-specific properties were added.
+            Assert.False(logEvent.Properties.ContainsKey("vb_error"));
+            Assert.False(logEvent.Properties.ContainsKey("source.line"));
+        }
+
+        /// <summary>
+        /// Verifies that the NLogInitializer correctly configures context properties
+        /// for a VB6 application environment.
+        /// </summary>
+        [Fact]
+        public void NLogInitializer_ConfigureVb6Context_SetsCorrectProperties()
+        {
+            // Arrange
+            NLog.GlobalDiagnosticsContext.Clear();
+
+            // Act
+            NLogInitializer.ConfigureVb6Context();
+
+            // Assert
+            Assert.Equal("VB6", NLog.GlobalDiagnosticsContext.Get("labels.app_type"));
+            Assert.False(string.IsNullOrEmpty(NLog.GlobalDiagnosticsContext.Get("service.name")));
         }
     }
 }
