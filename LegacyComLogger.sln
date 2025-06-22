@@ -30,6 +30,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Maintenance", "Maintenance"
 		Docs\filebeat.yml = Docs\filebeat.yml
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCompany.Logging.Benchmarks", "MyCompany.Logging.Benchmarks\MyCompany.Logging.Benchmarks.csproj", "{AAA1E50F-1491-4B3B-8BFE-2EE4396CC537}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -70,6 +72,14 @@ Global
 		{624C7BAB-B5A3-450C-9073-B7DF3C8CF9AB}.Release|Any CPU.Build.0 = Release|Any CPU
 		{624C7BAB-B5A3-450C-9073-B7DF3C8CF9AB}.Release|x86.ActiveCfg = Release|x86
 		{624C7BAB-B5A3-450C-9073-B7DF3C8CF9AB}.Release|x86.Build.0 = Release|x86
+		{AAA1E50F-1491-4B3B-8BFE-2EE4396CC537}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AAA1E50F-1491-4B3B-8BFE-2EE4396CC537}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AAA1E50F-1491-4B3B-8BFE-2EE4396CC537}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{AAA1E50F-1491-4B3B-8BFE-2EE4396CC537}.Debug|x86.Build.0 = Debug|Any CPU
+		{AAA1E50F-1491-4B3B-8BFE-2EE4396CC537}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AAA1E50F-1491-4B3B-8BFE-2EE4396CC537}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AAA1E50F-1491-4B3B-8BFE-2EE4396CC537}.Release|x86.ActiveCfg = Release|Any CPU
+		{AAA1E50F-1491-4B3B-8BFE-2EE4396CC537}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
