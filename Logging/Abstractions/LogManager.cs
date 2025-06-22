@@ -44,6 +44,13 @@ namespace MyCompany.Logging.Abstractions
         public static IInternalLogger InternalLogger { get; private set; } = new NullInternalLogger();
 
         /// <summary>
+        /// Gets the provider-agnostic tracer for creating APM transactions. Before initialization,
+        /// this returns a NullTracer that does nothing but execute the wrapped code. After
+        /// initialization, it returns the provider's actual tracer implementation.
+        /// </summary>
+        public static ITracer Tracer { get; internal set; } = new NullTracer();
+
+        /// <summary>
         /// Gets or sets a delegate that allows the LogManager to push context properties
         /// into the underlying logging provider (e.g., to NLog's MappedDiagnosticsLogicalContext).
         /// This is set by the provider's ILoggerFactory during initialization.
@@ -69,20 +76,23 @@ namespace MyCompany.Logging.Abstractions
                     const string factoryTypeName = "NLogLoggerFactory";
                     const string internalLoggerTypeName = "NLogInternalLogger";
                     const string initializerTypeName = "NLogInitializer";
+                    const string tracerTypeName = "ElasticApmTracer";
 
                     string factoryFullName = $"{providerAssemblyName}.{factoryTypeName}";
                     string internalLoggerFullName = $"{providerAssemblyName}.{internalLoggerTypeName}";
                     string initializerFullName = $"{providerAssemblyName}.{initializerTypeName}";
+                    string tracerFullName = $"{providerAssemblyName}.{tracerTypeName}";
 
                     // The core of the decoupled design: load the provider at runtime.
                     var assembly = Assembly.Load(providerAssemblyName);
                     var factoryType = assembly.GetType(factoryFullName, throwOnError: true);
                     var internalLoggerType = assembly.GetType(internalLoggerFullName, throwOnError: true);
                     var initializerType = assembly.GetType(initializerFullName, throwOnError: true);
+                    var tracerType = assembly.GetType(tracerFullName, throwOnError: true);
 
                     // Perform a safe, two-stage initialization.
                     InitializeBootstrap(internalLoggerType);
-                    InitializeMainFactory(factoryType, initializerType, environment);
+                    InitializeMainFactory(factoryType, initializerType, tracerType, environment);
                 }
                 catch (Exception ex)
                 {
@@ -131,13 +141,14 @@ namespace MyCompany.Logging.Abstractions
         }
 
         /// <summary>
-        /// Performs the second stage of initialization, creating the main logger factory
+        /// Performs the second stage of initialization, creating the main logger factory, tracer,
         /// and running the provider's context configuration logic.
         /// </summary>
         /// <param name="loggerFactoryType">The Type of the provider's logger factory.</param>
         /// <param name="nlogInitializerType">The Type of the provider's static initializer class.</param>
+        /// <param name="tracerType">The Type of the provider's tracer implementation.</param>
         /// <param name="environment">The application environment, used to select the correct configuration method.</param>
-        public static void InitializeMainFactory(Type loggerFactoryType, Type nlogInitializerType, ApplicationEnvironment environment)
+        public static void InitializeMainFactory(Type loggerFactoryType, Type nlogInitializerType, Type tracerType, ApplicationEnvironment environment)
         {
             if (!_isBootstrapInitialized)
             {
@@ -150,6 +161,9 @@ namespace MyCompany.Logging.Abstractions
                 // Create the factory that will produce ILogger instances.
                 _factory = (ILoggerFactory)Activator.CreateInstance(loggerFactoryType);
 
+                // Create the tracer that will handle APM transactions.
+                Tracer = (ITracer)Activator.CreateInstance(tracerType);
+
                 // Dynamically invoke the correct static configuration method based on the environment.
                 string methodName = environment == ApplicationEnvironment.Vb6 ? "ConfigureVb6Context" : "ConfigureDotNetContext";
                 var configureMethod = nlogInitializerType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
@@ -157,7 +171,7 @@ namespace MyCompany.Logging.Abstractions
             }
             catch (Exception ex)
             {
-                InternalLogger.Fatal("FATAL BOOTSTRAP ERROR: Could not create or configure the main LoggerFactory.", ex);
+                InternalLogger.Fatal("FATAL BOOTSTRAP ERROR: Could not create or configure the main LoggerFactory or Tracer.", ex);
             }
         }
 
@@ -280,6 +294,16 @@ namespace MyCompany.Logging.Abstractions
             public void Warn(string message, Exception exception = null) { }
             public void Error(string message, Exception exception = null) { }
             public void Fatal(string message, Exception exception = null) { }
+        }
+
+        /// <summary>
+        /// An ITracer implementation that performs no operations. This is returned by the LogManager
+        /// before initialization is complete to prevent NullReferenceExceptions in consumer code.
+        /// </summary>
+        private class NullTracer : ITracer
+        {
+            public void Trace(string name, TxType type, Action action) => action?.Invoke();
+            public T Trace<T>(string name, TxType type, Func<T> func) => func != null ? func.Invoke() : default;
         }
     }
 }

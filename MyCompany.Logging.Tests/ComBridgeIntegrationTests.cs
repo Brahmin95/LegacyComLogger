@@ -80,7 +80,7 @@ namespace MyCompany.Logging.Tests
 
                 // Act 4: Call a simple method to prove the object is alive and methods are callable.
                 // BeginTrace is a perfect test case on the new API. It should return another COM object.
-                transaction = comBridge.BeginTrace("IntegrationTest", "test");
+                transaction = comBridge.BeginTrace("IntegrationTest", Abstractions.TxType.Process);
 
                 // Assert: The primary assertion is that the method call returned a valid result.
                 // This proves the entire pipeline worked: registration -> activation -> instantiation -> method invocation.

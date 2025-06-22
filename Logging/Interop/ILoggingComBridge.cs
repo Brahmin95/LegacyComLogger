@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using MyCompany.Logging.Abstractions;
+using System.Runtime.InteropServices;
 
 namespace MyCompany.Logging.Interop
 {
@@ -23,18 +24,18 @@ namespace MyCompany.Logging.Interop
         /// The returned object MUST be set to Nothing when the work is complete to ensure context is cleaned up.
         /// </summary>
         /// <param name="transactionName">A descriptive name for the transaction (e.g., "SaveCustomerClick").</param>
-        /// <param name="transactionType">The type of transaction (e.g., "ui.interaction", "db.query").</param>
+        /// <param name="transactionType">The type of transaction from the `TxType` enum.</param>
         /// <returns>A transaction handle object that must be released.</returns>
-        ILoggingTransaction BeginTrace(string transactionName, string transactionType);
+        ILoggingTransaction BeginTrace(string transactionName, TxType transactionType);
 
         /// <summary>
         /// Begins a new child span within the currently active trace. Use this to measure sub-operations.
         /// The returned object MUST be set to Nothing when the sub-operation is complete.
         /// </summary>
         /// <param name="spanName">A descriptive name for the span (e.g., "ValidateAddress").</param>
-        /// <param name="spanType">The type of span (e.g., "db.sql", "external.http").</param>
+        /// <param name="spanType">The type of span from the `TxType` enum.</param>
         /// <returns>A span handle object that must be released.</returns>
-        ILoggingTransaction BeginSpan(string spanName, string spanType);
+        ILoggingTransaction BeginSpan(string spanName, TxType spanType);
 
         /// <summary>
         /// Logs a Trace message. Ambient context (trace.id, etc.) will be added automatically if active.

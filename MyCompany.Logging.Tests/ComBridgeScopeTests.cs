@@ -37,7 +37,7 @@ namespace MyCompany.Logging.Tests
         public void BeginTrace_WhenCalled_AddsContextAndCleansUpCorrectly()
         {
             // Arrange & Act
-            using (var trace = _bridge.BeginTrace("TestTrace", "test.type"))
+            using (var trace = _bridge.BeginTrace("TestTrace", Abstractions.TxType.Process))
             {
                 _bridge.Info("TestFile", "InTrace", "Message inside trace");
             }
@@ -70,7 +70,7 @@ namespace MyCompany.Logging.Tests
             string span1Id = null;
 
             // Act
-            using (var trace = _bridge.BeginTrace("TestTrace", "test.type"))
+            using (var trace = _bridge.BeginTrace("TestTrace", TxType.Process))
             {
                 _mockLogger.Setup(l => l.Info(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
                     .Callback<string, Dictionary<string, object>>((msg, d) => {
@@ -82,12 +82,12 @@ namespace MyCompany.Logging.Tests
                         }
                     });
 
-                using (var span1 = _bridge.BeginSpan("Span1", "test.span"))
+                using (var span1 = _bridge.BeginSpan("Span1", TxType.Process))
                 {
                     _bridge.Info("TestFile", "InSpan1", "Message inside Span 1");
                 }
 
-                using (var span2 = _bridge.BeginSpan("Span2", "test.span"))
+                using (var span2 = _bridge.BeginSpan("Span2", TxType.Process))
                 {
                     _bridge.Info("TestFile", "InSpan2", "Message inside Span 2");
                 }
@@ -115,7 +115,7 @@ namespace MyCompany.Logging.Tests
         public void BeginSpan_WithoutActiveTrace_AutomaticallyCreatesParentTrace()
         {
             // Arrange & Act
-            using (var spanAsTrace = _bridge.BeginSpan("OrphanSpan", "test.span"))
+            using (var spanAsTrace = _bridge.BeginSpan("OrphanSpan", TxType.Process))
             {
                 _bridge.Info("TestFile", "InOrphanSpan", "Message inside orphan span", null);
             }
@@ -141,8 +141,8 @@ namespace MyCompany.Logging.Tests
         public void DisposeParentTrace_BeforeChildSpan_PreventsContextCorruption()
         {
             // Arrange
-            var trace = _bridge.BeginTrace("ParentTrace", "test.type");
-            var span = _bridge.BeginSpan("ChildSpan", "test.span");
+            var trace = _bridge.BeginTrace("ParentTrace", TxType.Process);
+            var span = _bridge.BeginSpan("ChildSpan", TxType.Process);
 
             // Act
             (trace as IDisposable)?.Dispose();
@@ -183,12 +183,12 @@ namespace MyCompany.Logging.Tests
                 });
 
             // Act
-            using (var trace1 = _bridge.BeginTrace("Trace1", "type1"))
+            using (var trace1 = _bridge.BeginTrace("Trace1", TxType.Process))
             {
                 // The BeginTrace call itself will log and trigger the callback, setting outerTraceId.
                 Assert.NotNull(outerTraceId);
 
-                using (var trace2AsSpan = _bridge.BeginTrace("Trace2_AsSpan", "type2"))
+                using (var trace2AsSpan = _bridge.BeginTrace("Trace2_AsSpan", TxType.ScreenLoad))
                 {
                     _bridge.Info("TestFile", "InNestedTrace", "Message in nested trace");
                 }
@@ -211,7 +211,7 @@ namespace MyCompany.Logging.Tests
         public void ErrorHandler_WithinTrace_CreatesExceptionAndHasAmbientContext()
         {
             // Arrange
-            using (var trace = _bridge.BeginTrace("ErrorTest", "test"))
+            using (var trace = _bridge.BeginTrace("ErrorTest", TxType.Process))
             {
                 // Act
                 _bridge.ErrorHandler("File.cls", "Method", "Operation failed", "Disk Full", 76, "DAO", 123);

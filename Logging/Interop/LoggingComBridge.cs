@@ -68,7 +68,7 @@ namespace MyCompany.Logging.Interop
         }
 
         /// <inheritdoc/>
-        public ILoggingTransaction BeginTrace(string transactionName, string transactionType)
+        public ILoggingTransaction BeginTrace(string transactionName, TxType transactionType)
         {
             // RESILIENCE: If a trace is already active, treat this as a new top-level span
             // to prevent creating an invalid nested trace.
@@ -87,12 +87,12 @@ namespace MyCompany.Logging.Interop
             scope.Owner = transaction; // Link the scope to its owner transaction object.
 
             ScopeStack.Push(scope);
-            Info(transactionType, transactionName, $"Trace '{transactionName}' started.", null);
+            Info(transactionType.ToString(), transactionName, $"Trace '{transactionName}' started.", null);
             return transaction;
         }
 
         /// <inheritdoc/>
-        public ILoggingTransaction BeginSpan(string spanName, string spanType)
+        public ILoggingTransaction BeginSpan(string spanName, TxType spanType)
         {
             // RESILIENCE: If no trace is active, automatically create one to wrap this span.
             // This prevents orphaned spans and makes the API more forgiving.
@@ -113,7 +113,7 @@ namespace MyCompany.Logging.Interop
             scope.Owner = transaction;
 
             ScopeStack.Push(scope);
-            Info(spanType, spanName, $"Span '{spanName}' started.", null);
+            Info(spanType.ToString(), spanName, $"Span '{spanName}' started.", null);
             return transaction;
         }
 

@@ -144,6 +144,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ElasticApmAgentWrapper.cs" />
+    <Compile Include="ElasticApmTracer.cs" />
     <Compile Include="IApmAgentWrapper.cs" />
     <Compile Include="NLogInternalLogger.cs" />
     <Compile Include="NLogLogger.cs" />
