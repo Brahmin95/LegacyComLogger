@@ -3,7 +3,7 @@ using MyCompany.Logging.Abstractions;
 using MyCompany.Logging.ComBridge;
 using MyCompany.Logging.NLogProvider;
 using NLog.Config;
-using System; // FIX: Added the required using directive for Exception types.
+using System;
 using System.Collections.Generic;
 using Xunit;
 using NLogManager = NLog.LogManager;
@@ -78,7 +78,7 @@ namespace MyCompany.Logging.Tests
 
         /// <summary>
         /// Verifies that when a structured VBErrorException is logged, its rich diagnostic
-        /// properties (error number, source, line number) are extracted and added to the log event.
+        /// properties are extracted and added to the log event.
         /// </summary>
         [Fact]
         public void Log_WithStructuredVBErrorException_EnrichesWithVbErrorObjectAndSourceLine()
@@ -94,10 +94,11 @@ namespace MyCompany.Logging.Tests
             var logEvent = _testTarget.Events[0];
 
             // Assert that the special source.line property was added for Kibana UI integration.
+            Assert.True(logEvent.Properties.ContainsKey("source.line"), "The source.line property should be present.");
             Assert.Equal(123, logEvent.Properties["source.line"]);
 
             // Assert that the custom vb_error object was created and contains the correct data.
-            Assert.True(logEvent.Properties.ContainsKey("vb_error"));
+            Assert.True(logEvent.Properties.ContainsKey("vb_error"), "The vb_error object should be present.");
             var vbErrorContext = logEvent.Properties["vb_error"] as Dictionary<string, object>;
             Assert.NotNull(vbErrorContext);
             Assert.Equal(76L, vbErrorContext["number"]); // Note: long
@@ -106,7 +107,7 @@ namespace MyCompany.Logging.Tests
 
         /// <summary>
         /// Verifies that when a simple, logical VBErrorException is logged, the log event
-        /// includes the correct error type but adds a vb_error object with default values.
+        /// includes the correct error type and a vb_error object with default values.
         /// </summary>
         [Fact]
         public void Log_WithSimpleVBErrorException_HasCorrectTypeAndDefaultVbErrorObject()
@@ -125,12 +126,15 @@ namespace MyCompany.Logging.Tests
             Assert.NotNull(logEvent.Exception);
             Assert.IsType<VBErrorException>(logEvent.Exception);
 
-            // Assert that the vb_error object was added with the default logical error values.
-            Assert.True(logEvent.Properties.ContainsKey("vb_error"));
+            // Assert that the vb_error object was added with the default logical error values for consistency.
+            Assert.True(logEvent.Properties.ContainsKey("vb_error"), "The vb_error object should be present for logical errors too.");
             var vbErrorContext = logEvent.Properties["vb_error"] as Dictionary<string, object>;
             Assert.NotNull(vbErrorContext);
             Assert.Equal(-1L, vbErrorContext["number"]);
             Assert.Equal("LogicalError", vbErrorContext["source"]);
+
+            // Assert that source.line was NOT added, as it's null for this exception type.
+            Assert.False(logEvent.Properties.ContainsKey("source.line"));
         }
 
         /// <summary>
