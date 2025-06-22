@@ -2,6 +2,11 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
+
+// This attribute makes the internal members of this assembly visible to the test project,
+// allowing tests to set internal properties like LogManager.Tracer for mocking purposes.
+[assembly: InternalsVisibleTo("MyCompany.Logging.Tests")]
 
 namespace MyCompany.Logging.Abstractions
 {
@@ -27,7 +32,6 @@ namespace MyCompany.Logging.Abstractions
     public static class LogManager
     {
         private static ILoggerFactory _factory;
-        private static bool _isBootstrapInitialized = false;
         private static readonly object _initializationLock = new object();
         private static readonly ConcurrentDictionary<string, object> _contextCache = new ConcurrentDictionary<string, object>();
 
@@ -47,6 +51,7 @@ namespace MyCompany.Logging.Abstractions
         /// Gets the provider-agnostic tracer for creating APM transactions. Before initialization,
         /// this returns a NullTracer that does nothing but execute the wrapped code. After
         /// initialization, it returns the provider's actual tracer implementation.
+        /// The setter is internal but visible to the test assembly via `InternalsVisibleTo`.
         /// </summary>
         public static ITracer Tracer { get; internal set; } = new NullTracer();
 
@@ -66,112 +71,91 @@ namespace MyCompany.Logging.Abstractions
         /// <param name="environment">The type of application environment (DotNet or Vb6).</param>
         public static void Initialize(string providerAssemblyName, ApplicationEnvironment environment)
         {
-            if (IsInitialized) return;
-            lock (_initializationLock)
-            {
-                if (IsInitialized) return;
-                try
-                {
-                    // These type names are part of the contract with any logging provider.
-                    const string factoryTypeName = "NLogLoggerFactory";
-                    const string internalLoggerTypeName = "NLogInternalLogger";
-                    const string initializerTypeName = "NLogInitializer";
-                    const string tracerTypeName = "ElasticApmTracer";
-
-                    string factoryFullName = $"{providerAssemblyName}.{factoryTypeName}";
-                    string internalLoggerFullName = $"{providerAssemblyName}.{internalLoggerTypeName}";
-                    string initializerFullName = $"{providerAssemblyName}.{initializerTypeName}";
-                    string tracerFullName = $"{providerAssemblyName}.{tracerTypeName}";
-
-                    // The core of the decoupled design: load the provider at runtime.
-                    var assembly = Assembly.Load(providerAssemblyName);
-                    var factoryType = assembly.GetType(factoryFullName, throwOnError: true);
-                    var internalLoggerType = assembly.GetType(internalLoggerFullName, throwOnError: true);
-                    var initializerType = assembly.GetType(initializerFullName, throwOnError: true);
-                    var tracerType = assembly.GetType(tracerFullName, throwOnError: true);
-
-                    // Perform a safe, two-stage initialization.
-                    InitializeBootstrap(internalLoggerType);
-                    InitializeMainFactory(factoryType, initializerType, tracerType, environment);
-                }
-                catch (Exception ex)
-                {
-                    // This is a critical failure, e.g., the provider DLL is missing.
-                    // We must use our already-bootstrapped InternalLogger to report it.
-                    InternalLogger.Fatal("Failed to initialize logging provider via reflection. A required DLL is likely missing or a type name has changed.", ex);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Performs the first stage of initialization, creating only the internal logger.
-        /// This is a critical, highly-resilient step. If it fails, the application is likely
-        /// in a non-functional state, and it will attempt to notify the user and write to the
-        /// Windows Event Log as a last resort.
-        /// </summary>
-        /// <param name="internalLoggerType">The Type of the provider's internal logger implementation.</param>
-        public static void InitializeBootstrap(Type internalLoggerType)
-        {
-            if (_isBootstrapInitialized) return;
+            // The main try-catch is now at the top level to handle ANY failure during initialization,
+            // including Assembly.Load or Type.GetType, which occur before the InternalLogger is created.
             try
             {
-                InternalLogger = (IInternalLogger)Activator.CreateInstance(internalLoggerType);
+                if (IsInitialized) return;
+                lock (_initializationLock)
+                {
+                    if (IsInitialized) return;
+                    PerformInitialization(providerAssemblyName, environment);
+                }
             }
             catch (Exception ex)
             {
-                // This is the absolute "last gasp" for error reporting.
+                // This is the absolute "last gasp" for error reporting. It is used if any part
+                // of the initialization fails, even before the real InternalLogger is available.
                 string fatalErrorMsg = "CRITICAL: The application's core logging system could not be initialized. " +
-                                       "This is a severe configuration or deployment issue (e.g., missing DLLs).\n\n" +
-                                       "It is strongly recommended that you DO NOT PROCEED and contact IT Support.\n\n" +
-                                       "Do you wish to proceed anyway (NOT RECOMMENDED)?";
+                                       "This is a severe configuration or deployment issue (e.g., missing DLLs or incorrect type names).\n\n" +
+                                       "Exception: " + ex.Message;
 
-                Trace.WriteLine($"FATAL BOOTSTRAP ERROR: {fatalErrorMsg}\n\nException: {ex}");
-                WriteToEventLog($"FATAL BOOTSTRAP ERROR: Could not create InternalLogger of type '{internalLoggerType?.Name ?? "Unknown"}'. Exception: {ex}");
+                Trace.WriteLine($"FATAL BOOTSTRAP ERROR: {fatalErrorMsg}\n\nFull Exception: {ex}");
+                WriteToEventLog(fatalErrorMsg);
 
-                // Give the user a choice to exit, as the app is in a potentially unstable state.
-                if (!AskUserToOverrideSafetyRecommendation(fatalErrorMsg))
+                string userPrompt = fatalErrorMsg + "\n\nIt is strongly recommended that you DO NOT PROCEED and contact IT Support.\n\n" +
+                                    "Do you wish to proceed anyway (NOT RECOMMENDED)?";
+
+                if (!AskUserToOverrideSafetyRecommendation(userPrompt))
                 {
                     Environment.Exit(1);
                 }
             }
-            finally
-            {
-                _isBootstrapInitialized = true;
-            }
         }
 
         /// <summary>
-        /// Performs the second stage of initialization, creating the main logger factory, tracer,
-        /// and running the provider's context configuration logic.
+        /// The core logic for loading the provider assembly and instantiating its components.
+        /// This is wrapped by the public Initialize method's exception handling.
         /// </summary>
-        /// <param name="loggerFactoryType">The Type of the provider's logger factory.</param>
-        /// <param name="nlogInitializerType">The Type of the provider's static initializer class.</param>
-        /// <param name="tracerType">The Type of the provider's tracer implementation.</param>
-        /// <param name="environment">The application environment, used to select the correct configuration method.</param>
-        public static void InitializeMainFactory(Type loggerFactoryType, Type nlogInitializerType, Type tracerType, ApplicationEnvironment environment)
+        private static void PerformInitialization(string providerAssemblyName, ApplicationEnvironment environment)
         {
-            if (!_isBootstrapInitialized)
-            {
-                Trace.WriteLine("FATAL DEVELOPER ERROR: InitializeBootstrap() was not called before InitializeMainFactory().");
-                return;
-            }
-            if (IsInitialized) return;
+            // These type names are part of the contract with any logging provider.
+            const string factoryTypeName = "NLogLoggerFactory";
+            const string internalLoggerTypeName = "NLogInternalLogger";
+            const string initializerTypeName = "NLogInitializer";
+            const string tracerTypeName = "ElasticApmTracer";
+
+            string factoryFullName = $"{providerAssemblyName}.{factoryTypeName}";
+            string internalLoggerFullName = $"{providerAssemblyName}.{internalLoggerTypeName}";
+            string initializerFullName = $"{providerAssemblyName}.{initializerTypeName}";
+            string tracerFullName = $"{providerAssemblyName}.{tracerTypeName}";
+
+            // The core of the decoupled design: load the provider at runtime. Any failure here
+            // will be caught by the top-level handler in the public Initialize method.
+            var assembly = Assembly.Load(providerAssemblyName);
+            var internalLoggerType = assembly.GetType(internalLoggerFullName, throwOnError: true);
+            var factoryType = assembly.GetType(factoryFullName, throwOnError: true);
+            var initializerType = assembly.GetType(initializerFullName, throwOnError: true);
+            var tracerType = assembly.GetType(tracerFullName, throwOnError: true);
+
+            // --- Bootstrap Phase: Internal Logger ---
+            // If this fails, the top-level handler will catch it.
+            InternalLogger = (IInternalLogger)Activator.CreateInstance(internalLoggerType);
+            InternalLogger.Info("Internal logger bootstrapped successfully.");
+
+            // --- Main Initialization Phase ---
+            // From this point on, we can log failures to the newly created InternalLogger.
             try
             {
                 // Create the factory that will produce ILogger instances.
-                _factory = (ILoggerFactory)Activator.CreateInstance(loggerFactoryType);
+                _factory = (ILoggerFactory)Activator.CreateInstance(factoryType);
 
                 // Create the tracer that will handle APM transactions.
                 Tracer = (ITracer)Activator.CreateInstance(tracerType);
 
                 // Dynamically invoke the correct static configuration method based on the environment.
                 string methodName = environment == ApplicationEnvironment.Vb6 ? "ConfigureVb6Context" : "ConfigureDotNetContext";
-                var configureMethod = nlogInitializerType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
+                var configureMethod = initializerType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
                 configureMethod?.Invoke(null, null);
+
+                InternalLogger.Info($"Main logging factory and tracer initialized successfully for '{environment}' environment.");
             }
             catch (Exception ex)
             {
+                // If the main factory fails but bootstrap succeeded, we log to the internal logger.
                 InternalLogger.Fatal("FATAL BOOTSTRAP ERROR: Could not create or configure the main LoggerFactory or Tracer.", ex);
+                // We re-throw so the top-level handler displays the error to the user.
+                throw;
             }
         }
 

@@ -32,11 +32,32 @@ namespace MyCompany.Logging.Tests
         }
 
         /// <summary>
-        /// Verifies that calling Initialize with a valid provider assembly name sets the
-        /// IsInitialized flag to true.
+        /// Verifies that calling GetTracer before the framework is initialized returns a non-null
+        /// "NullTracer" instance that safely executes the wrapped code.
         /// </summary>
         [Fact]
-        public void Initialize_WhenCalledOnce_SetsFactoryAndIsInitialized()
+        public void GetTracer_BeforeInitialize_ReturnsResilientNullTracer()
+        {
+            // Arrange
+            Assert.False(LogManager.IsInitialized);
+            bool wasActionCalled = false;
+
+            // Act
+            var tracer = LogManager.Tracer;
+            tracer.Trace("Test", TxType.Process, () => { wasActionCalled = true; });
+
+            // Assert
+            Assert.NotNull(tracer);
+            Assert.EndsWith("NullTracer", tracer.GetType().Name);
+            Assert.True(wasActionCalled); // Verify the NullTracer still executes the code.
+        }
+
+        /// <summary>
+        /// Verifies that calling Initialize with a valid provider assembly name sets the
+        /// IsInitialized flag and correctly instantiates both the factory and the tracer.
+        /// </summary>
+        [Fact]
+        public void Initialize_WhenCalledOnce_SetsFactoryAndTracerAndIsInitialized()
         {
             // Arrange & Act
             // We call the real Initialize method, which uses reflection to load the provider.
@@ -45,6 +66,8 @@ namespace MyCompany.Logging.Tests
 
             // Assert
             Assert.True(LogManager.IsInitialized);
+            Assert.NotNull(LogManager.Tracer);
+            Assert.EndsWith("ElasticApmTracer", LogManager.Tracer.GetType().Name);
         }
 
         /// <summary>
@@ -60,6 +83,7 @@ namespace MyCompany.Logging.Tests
             var loggerFromFirstFactory = new Mock<ILogger>().Object;
             firstFactory.Setup(f => f.GetLogger(It.IsAny<string>())).Returns(loggerFromFirstFactory);
             InitializeWithMocks(firstFactory.Object, new Mock<IInternalLogger>().Object);
+            LogManager.Tracer = new Mock<ITracer>().Object; // Also set a mock tracer
 
             // Act
             // Attempt to call the real Initialize method again.
@@ -115,6 +139,7 @@ namespace MyCompany.Logging.Tests
             // The most important assertion is that no exception bubbled up and crashed the test.
             // This proves the top-level try-catch in LogManager.Initialize() is working as designed.
             Assert.Null(exception);
+            Assert.False(LogManager.IsInitialized);
         }
     }
 }

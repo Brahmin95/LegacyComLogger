@@ -138,6 +138,7 @@
     <Compile Include="LogManagerTests.cs" />
     <Compile Include="NLogProviderTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TracerAbstractionTests.cs" />
     <Compile Include="UnitTestTarget.cs" />
   </ItemGroup>
   <ItemGroup>

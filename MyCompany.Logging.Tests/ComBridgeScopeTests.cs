@@ -37,7 +37,7 @@ namespace MyCompany.Logging.Tests
         public void BeginTrace_WhenCalled_AddsContextAndCleansUpCorrectly()
         {
             // Arrange & Act
-            using (var trace = _bridge.BeginTrace("TestTrace", Abstractions.TxType.Process))
+            using (var trace = _bridge.BeginTrace("TestTrace", TxType.Process))
             {
                 _bridge.Info("TestFile", "InTrace", "Message inside trace");
             }
@@ -183,12 +183,12 @@ namespace MyCompany.Logging.Tests
                 });
 
             // Act
-            using (var trace1 = _bridge.BeginTrace("Trace1", TxType.Process))
+            using (var trace1 = _bridge.BeginTrace("Trace1", TxType.ScreenLoad))
             {
                 // The BeginTrace call itself will log and trigger the callback, setting outerTraceId.
                 Assert.NotNull(outerTraceId);
 
-                using (var trace2AsSpan = _bridge.BeginTrace("Trace2_AsSpan", TxType.ScreenLoad))
+                using (var trace2AsSpan = _bridge.BeginTrace("Trace2_AsSpan", TxType.UserInteraction))
                 {
                     _bridge.Info("TestFile", "InNestedTrace", "Message in nested trace");
                 }

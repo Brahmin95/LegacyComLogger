@@ -56,6 +56,12 @@ namespace MyCompany.Logging.Tests
             var nullInternalLoggerInstance = Activator.CreateInstance(nullInternalLoggerType);
             internalLoggerProperty?.SetValue(null, nullInternalLoggerInstance, null);
 
+            // Reset the static Tracer property to a new instance of the private NullTracer.
+            var tracerProperty = logManagerType.GetProperty("Tracer", BindingFlags.Public | BindingFlags.Static);
+            var nullTracerType = logManagerType.GetNestedType("NullTracer", BindingFlags.NonPublic);
+            var nullTracerInstance = Activator.CreateInstance(nullTracerType);
+            tracerProperty?.SetValue(null, nullTracerInstance, null);
+
             // Reset our NLogInitializer's static _isInitialized flag to false.
             var initializerIsInitializedField = typeof(NLogInitializer).GetField("_isInitialized", BindingFlags.NonPublic | BindingFlags.Static);
             if (initializerIsInitializedField == null)
