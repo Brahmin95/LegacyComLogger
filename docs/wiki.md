@@ -68,10 +68,10 @@ The solution is composed of a core `MyCompany.Logging` project that contains the
 ```mermaid
 graph LR
     subgraph "Consumer Layer (VB6)"
-        A[VB6 App] --> B[MyCompany.Logging (COM Interop)]
+        A[VB6 App] --> B[MyCompany.Logging]
     end
     subgraph "Consumer Layer (.NET)"
-        C[.NET App] --> D[MyCompany.Logging (Abstractions)]
+        C[.NET App] --> D[MyCompany.Logging]
     end
     
     B --> D

@@ -153,12 +153,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Logging\MyCompany.Logging.csproj">
-      <Project>{8dce40ff-efed-4cdd-adcf-32a89cc5c0cc}</Project>
-      <Name>MyCompany.Logging</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="app.config" />
     <None Include="packages.config" />
   </ItemGroup>

@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.33328.57
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCompany.Logging", "Logging\MyCompany.Logging.csproj", "{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCompany.Logging.NLogProvider", "MyCompany.Logging.NLogProvider\MyCompany.Logging.NLogProvider.csproj", "{13014B38-83BE-44FB-BCBB-650BD31D3375}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCompany.Logging.Tests", "MyCompany.Logging.Tests\MyCompany.Logging.Tests.csproj", "{61F869FF-C378-42DE-B411-0F1CDF2F2E04}"
@@ -32,6 +30,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Maintenance", "Maintenance"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCompany.Logging.Benchmarks", "MyCompany.Logging.Benchmarks\MyCompany.Logging.Benchmarks.csproj", "{AAA1E50F-1491-4B3B-8BFE-2EE4396CC537}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{291A0DBD-FE40-40CC-90D8-A6E6AD338B4C}"
+	ProjectSection(SolutionItems) = preProject
+		Overview.md = Overview.md
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCompany.Logging", "MyCompany.Logging\MyCompany.Logging.csproj", "{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -40,14 +45,6 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Debug|x86.ActiveCfg = Debug|x86
-		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Debug|x86.Build.0 = Debug|x86
-		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Release|Any CPU.Build.0 = Release|Any CPU
-		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Release|x86.ActiveCfg = Release|x86
-		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Release|x86.Build.0 = Release|x86
 		{13014B38-83BE-44FB-BCBB-650BD31D3375}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{13014B38-83BE-44FB-BCBB-650BD31D3375}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{13014B38-83BE-44FB-BCBB-650BD31D3375}.Debug|x86.ActiveCfg = Debug|x86
@@ -80,6 +77,14 @@ Global
 		{AAA1E50F-1491-4B3B-8BFE-2EE4396CC537}.Release|Any CPU.Build.0 = Release|Any CPU
 		{AAA1E50F-1491-4B3B-8BFE-2EE4396CC537}.Release|x86.ActiveCfg = Release|Any CPU
 		{AAA1E50F-1491-4B3B-8BFE-2EE4396CC537}.Release|x86.Build.0 = Release|Any CPU
+		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Debug|x86.ActiveCfg = Debug|x86
+		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Debug|x86.Build.0 = Debug|x86
+		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Release|x86.ActiveCfg = Release|x86
+		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

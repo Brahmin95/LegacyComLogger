@@ -256,10 +256,6 @@
     <Analyzer Include="..\packages\Microsoft.CodeAnalysis.Analyzers.2.6.1\analyzers\dotnet\cs\Microsoft.CodeAnalysis.CSharp.Analyzers.dll" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Logging\MyCompany.Logging.csproj">
-      <Project>{8dce40ff-efed-4cdd-adcf-32a89cc5c0cc}</Project>
-      <Name>MyCompany.Logging</Name>
-    </ProjectReference>
     <ProjectReference Include="..\MyCompany.Logging.NLogProvider\MyCompany.Logging.NLogProvider.csproj">
       <Project>{13014b38-83be-44fb-bcbb-650bd31d3375}</Project>
       <Name>MyCompany.Logging.NLogProvider</Name>
