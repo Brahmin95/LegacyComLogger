@@ -21,7 +21,7 @@ This logging framework was created to solve these problems by introducing modern
 
 We have built a highly decoupled logging framework that provides a simple API for developers and a powerful, structured data stream for ingestion into our Elasticsearch cluster. This allows us to trace a user's entire journey, from their session start to a single button click.
 
-[CODE_BLOCK_MERMAID_START]
+```mermaid
 graph TD
     subgraph "User's Journey"
         U[User Session] -->|Contains| T(Traces)
@@ -48,7 +48,7 @@ graph TD
     end
 
     style J fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px
-[CODE_BLOCK_END]
+```
 
 ---
 
@@ -65,13 +65,13 @@ The framework's architecture was guided by three core principles:
 
 The solution is composed of a core `MyCompany.Logging` project that contains the abstractions and the COM bridge, and a separate `MyCompany.Logging.NLogProvider` project.
 
-[CODE_BLOCK_MERMAID_START]
+```mermaid
 graph LR
     subgraph "Consumer Layer (VB6)"
-        A[VB6 App] --> B[MyCompany.Logging (COM Interop)]
+        A[VB6 App] --> B[MyCompany.Logging]
     end
     subgraph "Consumer Layer (.NET)"
-        C[.NET App] --> D[MyCompany.Logging (Abstractions)]
+        C[.NET App] --> D[MyCompany.Logging]
     end
     
     B --> D
@@ -85,7 +85,7 @@ graph LR
     end
 
     style F fill:#f9f,stroke:#333,stroke-width:2px
-[CODE_BLOCK_END]
+```
 
 -   **`MyCompany.Logging.Abstractions`**: This namespace within the core project is the lightweight, central contract. It contains only interfaces (`ILogger`, `ITracer`) and the static `LogManager`. It has **zero dependencies** on NLog or any other third-party library.
 -   **`MyCompany.Logging.NLogProvider`**: This is the concrete implementation. It references the `Abstractions` and contains all the NLog-specific code. It is responsible for all data enrichment.
@@ -128,7 +128,7 @@ It is best practice to create a single, global logger object that your entire ap
 1.  Create a new Module (`.bas` file) in your project, for example `modLogging.bas`.
 2.  Add the following code to the module:
 
-[CODE_BLOCK_VB_START]
+```vb
 ' In modLogging.bas
 
 ' 1. Declare a public logger object that can be accessed globally.
@@ -139,12 +139,12 @@ Public Sub InitializeLogging()
     ' This creates the one and only logger instance for the application.
     Set g_Logger = New MyCompanyLogging.LoggingComBridge
 End Sub
-[CODE_BLOCK_END]
+```
 
 ### Step 3: Initialize the Logger on Startup
 Call the `InitializeLogging` sub from your application's main entry point. This is typically `Sub Main` or the `Form_Load` event of your startup form.
 
-[CODE_BLOCK_VB_START]
+```vb
 ' In your application's startup Sub or Form
 Private Sub Form_Load()
     ' Initialize the logger once when the application starts.
@@ -153,7 +153,7 @@ Private Sub Form_Load()
     ' Now you can use g_Logger anywhere in your application.
     g_Logger.Info "frmMain", "Form_Load", "Application startup complete."
 End Sub
-[CODE_BLOCK_END]
+```
 
 You only need to do this once. The `g_Logger` object is lightweight and can be safely reused throughout your entire application.
 
@@ -173,7 +173,7 @@ This is the **recommended pattern** for any significant user action. It creates 
 
 **Rule:** The object returned by `BeginTrace` or `BeginSpan` **MUST** be set to `Nothing` when the operation is complete to clean up the context. Always use the `On Error GoTo...Cleanup` pattern to guarantee this.
 
-[CODE_BLOCK_VB_START]
+```vb
 Public Sub cmdSave_Click()
     Dim trace As MyCompanyLogging.ILoggingTransaction
     Dim dbSpan As MyCompanyLogging.ILoggingTransaction
@@ -214,7 +214,7 @@ Handle_Error:
     ' After logging, jump to the cleanup block to ensure context is released.
     GoTo Cleanup
 End Sub
-[CODE_BLOCK_END]
+```
 
 ---
 
@@ -225,7 +225,7 @@ End Sub
 ### Step 1: Initialize the Framework
 In your application's main entry point (typically `Program.cs` for Console/WinForms or `Global.asax.cs` for web apps), add a single line to initialize the logging framework.
 
-[CODE_BLOCK_CSHARP_START]
+```csharp
 // In Program.cs or equivalent startup file
 using MyCompany.Logging.Abstractions;
 using System;
@@ -244,12 +244,12 @@ static class Program
         Application.Run(new Form1());
     }
 }
-[CODE_BLOCK_END]
+```
 
 ### Step 2: Getting a Logger Instance
 In any class where you need to log, get a logger instance. The best practice is to create a `private static readonly` field. This is highly efficient and the logger object is safe for reuse.
 
-[CODE_BLOCK_CSHARP_START]
+```csharp
 // At the top of your class file
 using MyCompany.Logging.Abstractions;
 
@@ -260,7 +260,7 @@ public class MyService
     
     // ... now you can use _log in all methods of this class ...
 }
-[CODE_BLOCK_END]
+```
 
 ## 2. How Correlation IDs Work
 
@@ -272,7 +272,7 @@ public class MyService
 ### Tracing a Unit of Work - BEST PRACTICE
 This is the standard, provider-agnostic pattern for tracing an operation in .NET.
 
-[CODE_BLOCK_CSHARP_START]
+```csharp
 using MyCompany.Logging.Abstractions;
 using System;
 
@@ -316,7 +316,7 @@ public class OrderProcessor
         }
     }
 }
-[CODE_BLOCK_END]
+```
 
 ---
 
@@ -327,12 +327,12 @@ The logging verbosity is controlled by the `<rules>` section in the `nlog.config
 
 ### Default Configuration
 The default rule logs `Info` level and above for all loggers.
-[CODE_BLOCK_XML_START]
+```xml
 <rules>
   <!-- DEFAULT PRODUCTION RULE -->
   <logger name="*" minlevel="Info" writeTo="app-log-file" />
 </rules>
-[CODE_BLOCK_END]
+```
 
 ### How to Enable Debug Logging for a Specific Area
 To troubleshoot an issue, you can add a more specific rule **above** the default rule. The `final="true"` attribute is critical to prevent duplicate logging.
@@ -342,7 +342,7 @@ To troubleshoot an issue, you can add a more specific rule **above** the default
 1.  Open `nlog.config` on the server.
 2.  Add the following `<logger>` block inside the `<rules>` section, **before** the default rule.
 
-[CODE_BLOCK_XML_START]
+```xml
 <rules>
   <!-- 
     TEMPORARY DIAGNOSTIC RULE:
@@ -358,7 +358,7 @@ To troubleshoot an issue, you can add a more specific rule **above** the default
   <!-- DEFAULT PRODUCTION RULE -->
   <logger name="*" minlevel="Info" writeTo="app-log-file" />
 </rules>
-[CODE_BLOCK_END]
+```
 
 3.  Save the file. The new logging level will take effect almost immediately. Once you are done troubleshooting, simply remove the temporary rule block and save the file again.
 
@@ -392,12 +392,3 @@ For operations traced with our framework's `LogManager.Tracer` or the VB6 `Begin
 2.  Find your service (`MyCompany.PaymentService.exe` or `LegacyApp.exe`).
 3.  Click on a transaction (e.g., "FulfillOrder" or "SaveCustomerClick") to see the **transaction waterfall view**.
 4.  This view shows you the timing of all spans. At the bottom, there is a section for **"Logs"** which will show only the log messages correlated with that specific transaction. This is the fastest way to go from a performance problem to the logs that explain it.
-
-
-
-
-Replace [CODE_BLOCK_CSHARP_START] with ```csharp
-Replace [CODE_BLOCK_VB_START] with ```vb
-Replace [CODE_BLOCK_XML_START] with ```xml
-Replace [CODE_BLOCK_MERMAID_START] with ```mermaid
-Replace [CODE_BLOCK_END] with ```
