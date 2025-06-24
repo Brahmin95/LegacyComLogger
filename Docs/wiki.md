@@ -2,34 +2,7 @@
 
 ## 1. The Problem: A Black Box in Production
 
-Our legacy application ecosystem, composed of both modern .NET services and critical VB6 applications, has historically been a "black box" in production. When issues arise in our Citrix environment, our support teams and developers struggle with:
--   **Lack of Insight:** Inconsistent, unstructured text-based logs make it nearly impossible to search for specific events or correlate actions across different parts of the system.
--   **Diagnosing User-Specific Issues:** It's incredibly difficult to isolate the actions of a single user in our multi-user Citrix environment.
--   **Reactive Troubleshooting:** We often only learn about problems after a user reports a crash, with little to no diagnostic information about what led to the failure.
-
-## 2. The Goal: Achieving Observability
-
-This logging framework was created to solve these problems by introducing modern observability practices to our entire application stack. supported patterns, we provide a clear mental model and establish a "best practice" without forbidding the simpler approach where it's appropriate.
-
-I have updated the documentation to incorporate this concept. I've added a new section, **"Choosing Your Logging Pattern: Simple vs. Scoped (Traced)"**, to both the VB6 and .NET usage guides. This new section comes right after the setup instructions and before the detailed examples, perfectly setting the stage for *how* a developer should think about writing logs.
-
----
-### **File Changes**
-**Files: Added 0, Modified 1, Deleted 0**
-
----
-### **Updated Wiki Documentation**
-This is the single, consolidated documentation file with the new sections explaining the logging patterns.
-
----
-**File: `wiki.md`**
-
-```text
-# Overview: The Modern Logging Framework
-
-## 1. The Problem: A Black Box in Production
-
-Our legacy application ecosystem, composed of both modern .NET services and critical VB6 applications, has historically been a "black box" in production. When issues arise in our Citrix environment, our support teams and developers struggle with:
+Our legacy application ecosystem, composed of both .NET modules and legacy VB6 modules, has historically been a "black box" in production. When issues arise in our Citrix environment, our support teams and developers struggle with:
 -   **Lack of Insight:** Inconsistent, unstructured text-based logs make it nearly impossible to search for specific events or correlate actions across different parts of the system.
 -   **Diagnosing User-Specific Issues:** It's incredibly difficult to isolate the actions of a single user in our multi-user Citrix environment.
 -   **Reactive Troubleshooting:** We often only learn about problems after a user reports a crash, with little to no diagnostic information about what led to the failure.
