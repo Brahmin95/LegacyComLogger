@@ -21,7 +21,7 @@ This logging framework was created to solve these problems by introducing modern
 
 We have built a highly decoupled logging framework that provides a simple API for developers and a powerful, structured data stream for ingestion into our Elasticsearch cluster. This allows us to trace a user's entire journey, from their session start to a single button click.
 
-[CODE_BLOCK_MERMAID_START]
+```mermaid
 graph TD
     subgraph "User's Journey"
         U[User Session] -->|Contains| T(Traces)
@@ -48,7 +48,7 @@ graph TD
     end
 
     style J fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px
-[CODE_BLOCK_END]
+```
 
 ---
 
@@ -65,13 +65,13 @@ The framework's architecture was guided by three core principles:
 
 The solution is composed of a core `MyCompany.Logging` project that contains the abstractions and the COM bridge, and a separate `MyCompany.Logging.NLogProvider` project.
 
-[CODE_BLOCK_MERMAID_START]
+```mermaid
 graph LR
     subgraph "Consumer Layer (VB6)"
-        A[VB6 App] --> B[MyCompany.Logging (COM Interop)]
+        A[VB6 App] --> B[MyCompany.Logging - COM Interop]
     end
     subgraph "Consumer Layer (.NET)"
-        C[.NET App] --> D[MyCompany.Logging (Abstractions)]
+        C[.NET App] --> D[MyCompany.Logging - Abstractions]
     end
     
     B --> D
@@ -85,7 +85,7 @@ graph LR
     end
 
     style F fill:#f9f,stroke:#333,stroke-width:2px
-[CODE_BLOCK_END]
+```
 
 -   **`MyCompany.Logging.Abstractions`**: This namespace within the core project is the lightweight, central contract. It contains only interfaces (`ILogger`, `ITracer`) and the static `LogManager`. It has **zero dependencies** on NLog or any other third-party library.
 -   **`MyCompany.Logging.NLogProvider`**: This is the concrete implementation. It references the `Abstractions` and contains all the NLog-specific code. It is responsible for all data enrichment.
@@ -139,9 +139,9 @@ Before you can use the logger, you must add it to your VB6 project and initializ
 ### Step 1: Register the DLL and Add the Type Library Reference
 The `MyCompany.Logging.dll` must be registered on your development machine using `regasm.exe`. The `/tlb` switch is crucial as it creates the Type Library file (`.tlb`) that VB6 needs. Run this from an **Administrator Command Prompt**:
 
-[CODE_BLOCK_SHELL_START]
+```shell
 regasm.exe "C:\Path\To\Your\DLL\MyCompany.Logging.dll" /codebase /tlb
-[CODE_BLOCK_END]
+```
 
 Once the `.tlb` file exists, add the reference to your project. **This is the most reliable method.**
 1.  In the VB6 IDE, go to **Project -> References...**
@@ -160,7 +160,7 @@ Our framework uses a shared code module to provide a safe, consistent way to acc
 4.  Click **Open**. **Do not copy and paste the code**; linking to the existing file ensures all projects get updates automatically.
 
 The contents of `modLogging.bas` should be:
-[CODE_BLOCK_VB_START]
+```vb
 ' In modLogging.bas
 
 ' The global variable is Private to this module.
@@ -182,12 +182,12 @@ Public Function Logger() As MyCompanyLogging.LoggingComBridge
     ' Return the singleton instance.
     Set Logger = g_Logger
 End Function
-[CODE_BLOCK_END]
+```
 
 ### Step 3: Initialize the Logger on Startup
 Call the `InitializeLogging` sub from your application's main entry point (e.g., `Sub Main` or the `Form_Load` event of your startup form).
 
-[CODE_BLOCK_VB_START]
+```vb
 ' In your application's startup Sub or Form
 Private Sub Form_Load()
     ' Initialize the logger once when the application starts.
@@ -196,7 +196,7 @@ Private Sub Form_Load()
     ' Now you can use the Logger() function anywhere in your application.
     Logger.Info "frmMain", "Form_Load", "Application startup complete."
 End Sub
-[CODE_BLOCK_END]
+```
 
 ## 2. How Correlation IDs Work
 
@@ -210,7 +210,7 @@ Our framework automatically adds several correlation IDs to your logs.
 ### Using the Safe Accessor Function
 Always use the `Logger()` function from `modLogging.bas` to get the logger object. This guarantees your code will not crash even if initialization order is unexpected.
 
-[CODE_BLOCK_VB_START]
+```vb
 Public Sub cmdSave_Click()
     Dim trace As MyCompanyLogging.ILoggingTransaction
     On Error GoTo Handle_Error
@@ -232,7 +232,7 @@ Handle_Error:
                          Err.Description, Err.Number, Err.Source, Erl
     GoTo Cleanup
 End Sub
-[CODE_BLOCK_END]
+```
 
 ---
 
@@ -243,7 +243,7 @@ End Sub
 ### Step 1: Initialize the Framework
 In your application's main entry point (typically `Program.cs` for Console/WinForms or `Global.asax.cs` for web apps), add a single line to initialize the logging framework.
 
-[CODE_BLOCK_CSHARP_START]
+```csharp
 // In Program.cs or equivalent startup file
 using MyCompany.Logging.Abstractions;
 using System;
@@ -262,12 +262,12 @@ static class Program
         Application.Run(new Form1());
     }
 }
-[CODE_BLOCK_END]
+```
 
 ### Step 2: Getting a Logger Instance
 In any class where you need to log, get a logger instance. The best practice is to create a `private static readonly` field. This is highly efficient and the logger object is safe for reuse.
 
-[CODE_BLOCK_CSHARP_START]
+```csharp
 // At the top of your class file
 using MyCompany.Logging.Abstractions;
 
@@ -278,7 +278,7 @@ public class MyService
     
     // ... now you can use _log in all methods of this class ...
 }
-[CODE_BLOCK_END]
+```
 
 ## 2. How Correlation IDs Work
 
@@ -290,7 +290,7 @@ public class MyService
 ### Tracing a Unit of Work - BEST PRACTICE
 This is the standard, provider-agnostic pattern for tracing an operation in .NET.
 
-[CODE_BLOCK_CSHARP_START]
+```
 using MyCompany.Logging.Abstractions;
 using System;
 
@@ -314,8 +314,22 @@ public class OrderProcessor
             _log.Info("Order {OrderId} fulfillment complete.", orderId);
         });
     }
+
+    public void HandleError()
+    {
+        try
+        {
+            throw new InvalidOperationException("Could not connect to warehouse inventory.");
+        }
+        catch (Exception ex)
+        {
+            // If this code is running inside a LogManager.Tracer.Trace scope,
+            // this error log will be automatically correlated with it.
+            _log.Error(ex, "An error occurred while handling inventory.");
+        }
+    }
 }
-[CODE_BLOCK_END]
+```
 
 ---
 
@@ -326,12 +340,12 @@ The logging verbosity is controlled by the `<rules>` section in the `nlog.config
 
 ### Default Configuration
 The default rule logs `Info` level and above for all loggers.
-[CODE_BLOCK_XML_START]
+```xml
 <rules>
   <!-- DEFAULT PRODUCTION RULE -->
   <logger name="*" minlevel="Info" writeTo="app-log-file" />
 </rules>
-[CODE_BLOCK_END]
+```
 
 ### How to Enable Debug Logging for a Specific Area
 To troubleshoot an issue, you can add a more specific rule **above** the default rule. The `final="true"` attribute is critical to prevent duplicate logging.
@@ -341,7 +355,7 @@ To troubleshoot an issue, you can add a more specific rule **above** the default
 1.  Open `nlog.config` on the server.
 2.  Add the following `<logger>` block inside the `<rules>` section, **before** the default rule.
 
-[CODE_BLOCK_XML_START]
+```xml
 <rules>
   <!-- 
     TEMPORARY DIAGNOSTIC RULE:
@@ -357,7 +371,7 @@ To troubleshoot an issue, you can add a more specific rule **above** the default
   <!-- DEFAULT PRODUCTION RULE -->
   <logger name="*" minlevel="Info" writeTo="app-log-file" />
 </rules>
-[CODE_BLOCK_END]
+```
 
 3.  Save the file. The new logging level will take effect almost immediately. Once you are done troubleshooting, simply remove the temporary rule block and save the file again.
 
