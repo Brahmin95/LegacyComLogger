@@ -1,0 +1,50 @@
+<!-- 
+Prerequisites:
+	You must be using the WiX Toolset v3.6 or later.
+	You must add a reference to WixUtilExtension.dll to your WiX project.
+	You must add the util namespace to the <Wix> element in your main .wxs file:
+xmlns:util="http://schemas.microsoft.com/wix/UtilExtension"
+
+To use this:
+    Replace PUT-NEW-GUID-HERE-1 with a new, valid GUID.
+    Update the Source path to point to where your Cleanup-AppLogs.ps1 script is located in your source code.
+    In your main Product.wxs file, add a reference to this component group inside the <Feature> element: <ComponentGroupRef Id="ScheduledTaskComponents" />
+-->
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+  <Fragment>
+    <!-- Define the directory where the cleanup script will be installed. -->
+    <!-- This should be nested under your main application's INSTALLFOLDER directory. -->
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Directory Id="MaintenanceScriptsDir" Name="Maintenance" />
+    </DirectoryRef>
+
+    <ComponentGroup Id="ScheduledTaskComponents" Directory="MaintenanceScriptsDir">
+      <!-- Component to install the PowerShell script file itself. -->
+      <Component Id="CleanupScriptComponent" Guid="PUT-NEW-GUID-HERE-1">
+        <File Id="CleanupScriptFile"
+              Source="Path\To\Your\Cleanup-AppLogs.ps1"
+              KeyPath="yes"
+              Vital="yes" />
+
+        <!-- This is the core element that creates the scheduled task. -->
+        <util:ScheduledTask
+            Id="CleanupLogsTask"
+            Name="MyCompany Log Cleanup"
+            Description="Deletes application log files older than 30 days."
+            User="SYSTEM"
+            LogonType="S4U"
+            Interactive="no"
+            Directory="MaintenanceScriptsDir"
+            Program="[System64Folder]WindowsPowerShell\v1.0\powershell.exe"
+            Arguments='-NoProfile -ExecutionPolicy Bypass -File "[#CleanupScriptFile]" -Path "C:\Logs\AppLogs" -DaysToKeep 30'
+            Schedule="daily"
+            StartTime="86400000" /> <!-- StartTime is in milliseconds from midnight. 86400000 = 2:00 AM -->
+            
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>
