@@ -1,5 +1,5 @@
 ' A module to wrap a safe logging accessor
-' it's implementation is Idempotic in case IniliazeLogging is accidenally re-called
+' it's implementation is Idempotent in case IniliazeLogging is accidenally re-called
 ' or the developer forgets to initialise prior to calling the logger() accessor.
 ' ensure that the COM assembly is also added to any app that uses this module.
 
