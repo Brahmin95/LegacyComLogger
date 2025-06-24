@@ -143,6 +143,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
+    <None Include="nlog.config" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -182,18 +183,7 @@
   </Target>
   <Import Project="..\packages\xunit.core.2.9.3\build\xunit.core.targets" Condition="Exists('..\packages\xunit.core.2.9.3\build\xunit.core.targets')" />
   <PropertyGroup>
-    <PostBuildEvent>echo --- Copying ALL runtime dependencies from the main .NET application for Integration Test ---
-
-REM Define the source directory (the output of your main application).
-SET SourceAppDir="$(SolutionDir)WindowsFormsApp1\bin\x86\$(ConfigurationName)\"
-
-echo Copying all files FROM: %25SourceAppDir%25
-echo Copying all files TO:   $(TargetDir)
-
-REM This command copies all files FROM the application's output folder
-REM TO the test project's output folder.
-xcopy "%25SourceAppDir%25*" "$(TargetDir)" /Y /I /D /E
-
-echo --- Dependency copy complete ---</PostBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
   </PropertyGroup>
 </Project>

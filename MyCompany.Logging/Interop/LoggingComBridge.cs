@@ -65,6 +65,7 @@ namespace MyCompany.Logging.Interop
         {
             if (ScopeStack.Count > 0)
             {
+                LogManager.InternalLogger.Debug($"BeginTrace called while trace '{ScopeStack.ToArray()[ScopeStack.Count - 1].TraceId}' is active. Creating a child span instead.");
                 return BeginSpan(transactionName, transactionType);
             }
             var traceId = Guid.NewGuid().ToString("N");
@@ -80,6 +81,7 @@ namespace MyCompany.Logging.Interop
         {
             if (ScopeStack.Count == 0)
             {
+                LogManager.InternalLogger.Debug("BeginSpan called with no active trace. Automatically creating a new parent trace.");
                 return BeginTrace(spanName, spanType);
             }
             var parentScope = ScopeStack.Peek();
@@ -192,13 +194,9 @@ namespace MyCompany.Logging.Interop
                 var keys = scriptingDict.Keys() as object[];
                 if (keys != null)
                 {
-                    // THE FIX: Use a traditional 'for' loop to avoid issues with passing
-                    // a 'foreach' variable by reference.
                     for (int i = 0; i < keys.Length; i++)
                     {
                         object key = keys[i];
-                        // THE FIX: Call the explicit 'get_Item' accessor method, which is what the
-                        // compiler error message (CS1545) recommended.
                         dict[key.ToString()] = SanitizeValue(scriptingDict.get_Item(ref key));
                     }
                 }
