@@ -9,7 +9,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCompany.Logging.Tests", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowsFormsApp1", "WindowsFormsApp1\WindowsFormsApp1.csproj", "{624C7BAB-B5A3-450C-9073-B7DF3C8CF9AB}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Other", "Other", "{A334F397-CE0E-47ED-8238-28D11F39FC10}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{A334F397-CE0E-47ED-8238-28D11F39FC10}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deployment", "Deployment", "{30C8E2B8-CEB8-45B5-8A51-79B1F9CF5B9E}"
 	ProjectSection(SolutionItems) = preProject
@@ -30,11 +30,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Maintenance", "Maintenance"
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCompany.Logging.Benchmarks", "MyCompany.Logging.Benchmarks\MyCompany.Logging.Benchmarks.csproj", "{AAA1E50F-1491-4B3B-8BFE-2EE4396CC537}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{291A0DBD-FE40-40CC-90D8-A6E6AD338B4C}"
-	ProjectSection(SolutionItems) = preProject
-		Overview.md = Overview.md
-	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCompany.Logging", "MyCompany.Logging\MyCompany.Logging.csproj", "{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}"
 EndProject
