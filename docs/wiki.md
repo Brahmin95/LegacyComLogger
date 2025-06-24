@@ -9,6 +9,33 @@ Our legacy application ecosystem, composed of both modern .NET services and crit
 
 ## 2. The Goal: Achieving Observability
 
+This logging framework was created to solve these problems by introducing modern observability practices to our entire application stack. supported patterns, we provide a clear mental model and establish a "best practice" without forbidding the simpler approach where it's appropriate.
+
+I have updated the documentation to incorporate this concept. I've added a new section, **"Choosing Your Logging Pattern: Simple vs. Scoped (Traced)"**, to both the VB6 and .NET usage guides. This new section comes right after the setup instructions and before the detailed examples, perfectly setting the stage for *how* a developer should think about writing logs.
+
+---
+### **File Changes**
+**Files: Added 0, Modified 1, Deleted 0**
+
+---
+### **Updated Wiki Documentation**
+This is the single, consolidated documentation file with the new sections explaining the logging patterns.
+
+---
+**File: `wiki.md`**
+
+```text
+# Overview: The Modern Logging Framework
+
+## 1. The Problem: A Black Box in Production
+
+Our legacy application ecosystem, composed of both modern .NET services and critical VB6 applications, has historically been a "black box" in production. When issues arise in our Citrix environment, our support teams and developers struggle with:
+-   **Lack of Insight:** Inconsistent, unstructured text-based logs make it nearly impossible to search for specific events or correlate actions across different parts of the system.
+-   **Diagnosing User-Specific Issues:** It's incredibly difficult to isolate the actions of a single user in our multi-user Citrix environment.
+-   **Reactive Troubleshooting:** We often only learn about problems after a user reports a crash, with little to no diagnostic information about what led to the failure.
+
+## 2. The Goal: Achieving Observability
+
 This logging framework was created to solve these problems by introducing modern observability practices to our entire application stack. The primary goal is to **transform our logs from simple text files into rich, structured, and searchable data streams.**
 
 ### Conceptual Goals:
@@ -30,9 +57,10 @@ graph TD
     end
 
     subgraph "Application Code"
-        A[VB6 Application] -->|Calls COM Object| B(ComBridge)
-        C[.NET Application] -->|Calls LogManager| D{Abstractions}
-        B -->|Uses| D
+      direction LR
+      A[VB6 App] --> B(ComBridge)
+      C[.NET App] --> D{Abstractions}
+      B --> D
     end
     
     subgraph "Framework & Infrastructure"
@@ -47,7 +75,7 @@ graph TD
         I --> J[<a href='https://my-elastic-instance/kibana/dashboards'>Enterprise Dashboards</a>]
     end
 
-    style J fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px
+    style J fill:#dae8fc,stroke:#333,color:#000
 ```
 
 ---
@@ -68,13 +96,14 @@ The solution is composed of a core `MyCompany.Logging` project that contains the
 ```mermaid
 graph LR
     subgraph "Consumer Layer (VB6)"
-        A[VB6 App] --> B[MyCompany.Logging - COM Interop]
+        A[VB6 App]
     end
     subgraph "Consumer Layer (.NET)"
-        C[.NET App] --> D[MyCompany.Logging - Abstractions]
+        C[.NET App] --> D[MyCompany.Logging (Abstractions)]
     end
     
-    B --> D
+    A -->|Calls| B[MyCompany.Logging (COM Bridge)]
+    B -.->|Crosses COM/Interop Boundary| D
     
     subgraph "Core Framework"
         D -- "ILogger, ITracer, LogManager" --> E{Provider-Agnostic Contract}
@@ -84,49 +113,163 @@ graph LR
        F[MyCompany.Logging.NLogProvider] -- "Implements Contracts" --> E
     end
 
-    style F fill:#f9f,stroke:#333,stroke-width:2px
+    style F fill:#e1bee7,stroke:#333,color:#000
 ```
 
 -   **`MyCompany.Logging.Abstractions`**: This namespace within the core project is the lightweight, central contract. It contains only interfaces (`ILogger`, `ITracer`) and the static `LogManager`. It has **zero dependencies** on NLog or any other third-party library.
 -   **`MyCompany.Logging.NLogProvider`**: This is the concrete implementation. It references the `Abstractions` and contains all the NLog-specific code. It is responsible for all data enrichment.
 -   **`MyCompany.Logging.Interop`**: This namespace within the core project is the dedicated adapter for our VB6 clients. It is COM-visible and provides a simple, intuitive API for VB6 developers.
 
-## 3. The Concept of Logging Scopes: Trace, Transaction, and Span
+## 3. Understanding Correlation: Session, Trace, Transaction, and Span
 
-The most powerful feature of this framework is its ability to correlate log messages to a specific user action. When a user clicks "Save Customer," dozens of log messages might be generated from different parts of the code. A **logging scope** is what groups all of these messages together into a single, understandable story.
+The most powerful feature of this framework is its ability to correlate events. We use a hierarchy of IDs to tell a complete story, from an entire user session down to a single database call.
 
-This framework uses a three-level hierarchy to tell that story:
+### **`session.id` (The User Journey)**
+This is the broadest context. A unique ID is generated automatically the *very first time* the logging framework is initialized within a process.
+-   **Scope:** The entire lifetime of the application's parent process.
+-   **Inheritance:** This ID is stored in a machine-wide environment variable. Crucially, any **child processes** (other EXEs) launched by your application will automatically inherit this ID.
+-   **Purpose:** To answer the question, "Show me every single The primary goal is to **transform our logs from simple text files into rich, structured, and searchable data streams.**
 
--   **Trace:** The entire, end-to-end operation. It acts as the "umbrella" for everything that happens as a result of a single trigger.
-    -   *Analogy:* The entire story of "The User Saved a Customer".
-    -   *ID:* `trace.id`. All events within the trace share this ID.
+### Conceptual Goals:
+-   **Unified Logging:** A single, consistent way to log from any application, whether it's VB6 or .NET.
+-   **Structured Data:** Every log event is a structured JSON document, not just a line of text. This means we can filter, aggregate, and build dashboards on any piece of data in the log (e.g., `user.id`, `error.type`, `vb_error.number`).
+-   **End-to-End Correlation:** Seamlessly connect a user's action from the first button click in the UI through every database call and business rule, even if it spans multiple applications.
+-   **Resilience and Performance:** The logging system must be fast, efficient, and absolutely must not crash the application it's supposed to be monitoring.
 
--   **Transaction:** The main, high-level phase of the operation. For a user-facing application, the first transaction is often the trace itself.
-    -   *Analogy:* The main chapter of the story, e.g., "Processing the SaveCustomerClick Event".
-    -   *ID:* `transaction.id`.
+## 3. The Solution at a Glance
 
--   **Span:** A specific, timed sub-operation within a transaction. This is used to measure the performance of individual pieces of work, like a database call or an external API request.
-    -   *Analogy:* A paragraph in the chapter, e.g., "Validated Customer Address" or "Updated a record in the database."
-    -   *ID:* `span.id`. A span gets its own unique ID but inherits the `trace.id` and `transaction.id` of its parent.
+We have built a highly decoupled logging framework that provides a simple API for developers and a powerful, structured data stream for ingestion into our Elasticsearch cluster. This allows us to trace a user's entire journey, from their session start to a single button click.
 
-By wrapping a unit of work in a **Trace**, you gain the ability to search for a single `trace.id` in Kibana and see every single log, from every component, in the exact order it happened, allowing you to instantly reconstruct the entire operation.
+```mermaid
+graph TD
+    subgraph "User's Journey"
+        U[User Session] -->|Contains| T(Traces)
+        T -->|Contains| TX(Transactions)
+        TX -->|Contains| S(Spans & Logs)
+    end
+
+    subgraph "Application Code"
+      direction LR
+      A[VB6 App] --> B(ComBridge)
+      C[.NET App] --> D{Abstractions}
+      B --> D
+    end
+    
+    subgraph "Framework & Infrastructure"
+        D -- "Loads at Runtime" --> E(NLog Provider)
+        E -- "Writes ECS JSON" --> F[Log Files on Disk]
+        G[Filebeat Agent] -- "Harvests" --> F
+        G --> H{Elasticsearch Cluster}
+    end
+
+    subgraph "Analysis & Monitoring"
+        H --> I[Kibana & Elastic APM]
+        I --> J[<a href='https://my-elastic-instance/kibana/dashboards'>Enterprise Dashboards</a>]
+    end
+
+    style J fill:#dae8fc,stroke:#333,color:#000
+```
+
+---
+
+# Logging Patterns: Simple vs. Scoped Logging
+
+The framework supports two fundamental logging patterns. Understanding when to use each is key to creating effective and easy-to-analyze diagnostics.
+
+### Pattern 1: Simple Logging (Event-Based)
+This is for logging individual, standalone events. It's the equivalent of a traditional log message, but automatically enriched with structure and a `session.id`.
+
+-   **Purpose:** To answer the question, **"What happened at a specific moment in time?"**
+-   **Context:** Contains `session.id` but lacks `trace.id` and `transaction.id`.
+-   **APM Visibility:** These logs appear in Kibana Discover/Logs but are **not** attached to a transaction waterfall in the APM UI.
+-   **When to Use:**
+    -   Application startup and shutdown events (`Application starting...`, `Configuration loaded.`).
+    -   Periodic background tasks (`Cache cleanup started at 2:00 AM.`).
+    -   Informational events that are not part of a specific user-driven operation.
+
+### Pattern 2: Scoped Logging (Trace-Based)
+This is for grouping all events related to a single, complete operation. This pattern is what populates the APM UI and provides the most powerful correlation.
+
+-   **Purpose:** To answer the question, **"What is the complete story of why the 'Save Customer' action was slow or failed?"**
+-   **Context:** Contains `session.id`, `trace.id`, `transaction.id`, and potentially `span.id`.
+-   **APM Visibility:** Logs are automatically linked to their corresponding transaction in the APM UI's waterfall view.
+-   **When to Use:**
+    -   **Any user-initiated action:** This is the primary use case. Button clicks, menu selections, form submissions.
+    -   **Any incoming request to a service:** e.g., a web API endpoint call.
+    -   **Complex, multi-step business processes.**
+
+| Feature | Simple Logging (Event) | Scoped Logging (Trace) |
+| :--- | :--- | :--- |
+| **Answers** | "What happened right now?" | "What is the story of this operation?" |
+| **Correlation** | `session.id` only | `session.id` + `trace.id` + `transaction.id` |
+| **APM UI** | Not visible in transaction view | **Visible** in transaction view |
+| **Use For** | Standalone system events | User-driven or business operations |
+
+---
+
+# Architectural Deep Dive
+
+## 1. Guiding Principles & Components
+The framework's architecture was guided by three core principles: Loose Coupling, Resilience, and Separation of Concerns. It is composed of a core `MyCompany.Logging` project (Abstractions and COM Interop) and an implementation project `MyCompany.Logging.NLogProvider`.
+
+```mermaid
+graph LR
+    subgraph "Consumer Layer (VB6)"
+        A[VB6 App]
+    end
+    subgraph "Consumer Layer (.NET)"
+        C[.NET App] --> D[MyCompany.Logging (Abstractions)]
+    end
+    
+    A -->|Calls| B[MyCompany.Logging (COM Bridge)]
+    B -.->|Crosses COM/Interop Boundary| D
+    
+    subgraph "Core Framework"
+        D -- "ILogger, ITracer, LogManager" --> E{Provider-Agnostic Contract}
+    end
+
+    subgraph "Implementation Layer"
+       F[MyCompany.Logging.NLogProvider] -- "Implements Contracts" --> E
+    end
+
+    style F fill:#e1bee7,stroke:#333,color:#000
+```
+
+## 2. The Concept of Scopes: Trace, Transaction, and Span
+A **logging scope** groups all messages from a single operation into an understandable story.
+
+-   **Trace:** The entire, end-to-end operation. The "umbrella" for everything.
+-   **Transaction:** The main, high-level phase of work. In a client app, the first transaction *is* the trace. In a distributed system, each service call within a trace gets its own new transaction.
+-   **Span:** A specific, timed sub-operation within a transaction, like a database call.
+
+## 3. The Decoupling Mechanism & "Ambient Context"
+The framework uses `Assembly.Load()` to load the NLog provider at runtime, ensuring loose coupling. For VB6, it provides an "ambient context backpack" via a `ThreadStatic` stack in the COM Bridge. This automatically enriches log calls with the active `trace.id` when developers use the `BeginTrace`/`BeginSpan` methods, removing the need to pass context manually. thing this user did, in every application they ran, since they started their session."
+
+### **`trace.id` (A Single Operation)**
+This is the "umbrella" for everything that happens as a result of a single, top-level trigger, like a user clicking a button.
+-   **Scope:** An entire, end-to-end operation.
+-   **Analogy:** The entire story of "The User Saved a Customer".
+-   **Purpose:** To answer the question, "Show me every log and performance metric related to the 'Save Customer' action, from start to finish." All events within the trace share this ID.
+
+### **`transaction.id` (A Major Phase of Work)**
+This represents a significant, high-level segment of work within a trace.
+-   **Scope:** A major phase of an operation. In a simple client application, the first transaction *is* the trace.
+-   **Analogy:** The main chapter of the story, e.g., "Processing the SaveCustomerClick Event in the VB6 App".
+-   **Purpose:** To group all work done by a specific component or service. If a trace crosses process boundaries, each component will create its own transaction, but they will all share the same `trace.id`.
+
+### **`span.id` (A Sub-Operation)**
+This represents a specific, timed sub-operation within a transaction.
+-   **Scope:** A smaller, specific piece of work, like a database call or a business rule calculation.
+-   **Analogy:** A paragraph in a chapter, e.g., "Validated Customer Address".
+-   **Purpose:** To measure the performance of individual pieces of work within a larger transaction.
 
 ## 4. The Decoupling Mechanism: Runtime Initialization
 
-The key to the loose coupling is the static `LogManager.Initialize()` method.
--   An application (e.g., a WinForms `Program.cs` or the `ComBridge` constructor) calls the simple `LogManager.Initialize(AppRuntime.DotNet)`.
--   The `LogManager` uses internal configuration to find the provider assembly name (e.g., "MyCompany.Logging.NLogProvider").
--   It then uses **`Assembly.Load()`** to load the provider DLL at runtime and reflection to find and instantiate the provider's factory and tracer classes.
--   This means the consuming application **never needs a compile-time reference** to `MyCompany.Logging.NLogProvider`, allowing the provider to be swapped out in the future by changing the internal configuration in `LogManager`.
+The key to the loose coupling is the static `LogManager.Initialize()` method. It uses internal configuration to find and load the provider assembly (e.g., "MyCompany.Logging.NLogProvider") at runtime via `Assembly.Load()`. This means the consuming application **never needs a compile-time reference** to the provider, allowing it to be swapped in the future.
 
-## 5. Developer Concerns: The Ambient Context "Backpack"
+## 5. The Ambient Context "Backpack" for VB6
 
-For VB6, which lacks modern context-propagation features to manage the scopes described above, we built a robust "ambient context" system into the `ComBridge`.
-
--   **The Problem:** Manually passing a properties dictionary with trace IDs through every function call is tedious and error-prone.
--   **The Solution:** The `ComBridge` exposes `BeginTrace()` and `BeginSpan()` methods. When called, they return a "handle" object (`ILoggingTransaction`). Behind the scenes, the bridge pushes a new scope onto a thread-safe stack.
--   **Automatic Enrichment:** Any log call made while that scope is active will be **automatically enriched** with the correct `trace.id`, `transaction.id`, and `span.id` from the active scope.
--   **Guaranteed Cleanup:** The "handle" object implements `IDisposable`. When the VB6 developer sets the handle variable to `Nothing`, the COM Interop layer guarantees that the `.Dispose()` method on the .NET object is called, which safely pops the scope from the stack. The bridge is also resilient to out-of-order disposal to prevent context corruption.
+For VB6, we built a robust "ambient context" system into the `ComBridge` using a thread-safe stack. When a developer calls `BeginTrace()` or `BeginSpan()`, a handle object is returned. When this handle is destroyed (`Set obj = Nothing`), its scope is automatically popped from the stack, ensuring all logs in between are correctly correlated.
 
 ---
 
@@ -134,88 +277,93 @@ For VB6, which lacks modern context-propagation features to manage the scopes de
 
 ## 1. Setup (One-Time Project Configuration)
 
-Before you can use the logger, you must add it to your VB6 project and initialize it once when your application starts.
+To enable modern logging in your VB6 project, you must perform the following **two mandatory steps**.
 
-### Step 1: Register the DLL and Add the Type Library Reference
-The `MyCompany.Logging.dll` must be registered on your development machine using `regasm.exe`. The `/tlb` switch is crucial as it creates the Type Library file (`.tlb`) that VB6 needs. Run this from an **Administrator Command Prompt**:
+### Step 1: Add the Type Library Reference
+Reference the Type Library (`.tlb`) file created by the .NET build process.
+1.  In the VB6 IDE, go to **Project -> References...** and click the **Browse...** button.
+2.  Change the file type dropdown to **Type Libraries (*.olb, *.tlb)**.
+3.  Navigate to the build output folder (e.g., `bin\Debug`) and select **`MyCompany.Logging.tlb`**.
+4.  Click **Open**, then **OK**.
 
-```shell
-regasm.exe "C:\Path\To\Your\DLL\MyCompany.Logging.dll" /codebase /tlb
-```
-
-Once the `.tlb` file exists, add the reference to your project. **This is the most reliable method.**
-1.  In the VB6 IDE, go to **Project -> References...**
-2.  Click the **Browse...** button.
-3.  In the file dialog, change the file type dropdown to **Type Libraries (*.olb, *.tlb)**.
-4.  Navigate to the folder where your `MyCompany.Logging.dll` was built (e.g., `bin\Debug`) and select the generated **`MyCompany.Logging.tlb`** file.
-5.  Click **Open**, then **OK**.
-
-*(Note: After referencing the `.tlb` file, you may now see a friendly name like "MyCompany Logging Framework" checked in the references list. Using the Browse method is simply the most direct way to ensure the correct reference is added.)*
-
-### Step 2: Add the Global Logger Module
-Our framework uses a shared code module to provide a safe, consistent way to access the logger.
-1.  In the VB6 IDE, go to **Project -> Add Module**.
-2.  Do not add a new module. Instead, choose the **Existing** tab.
-3.  Navigate to the central source control location for shared code (e.g., `\\TFS_Server\Common\VB6_Modules\`) and select **`modLogging.bas`**.
-4.  Click **Open**. **Do not copy and paste the code**; linking to the existing file ensures all projects get updates automatically.
+### Step 2: Import the Global Logger Module
+Import the shared `modLogging.bas` module from a central source control location.
+1.  In the VB6 IDE, go to **Project -> Add Module** and choose the **Existing** tab.
+2.  Navigate to the shared location (e.g., `\\TFS_Server\Common\VB6_Modules\`) and select **`modLogging.bas`**.
 
 The contents of `modLogging.bas` should be:
 ```vb
 ' In modLogging.bas
-
-' The global variable is Private to this module.
 Private g_Logger As MyCompanyLogging.LoggingComBridge
 
-' This is called once by the host application's startup code.
 Public Sub InitializeLogging()
     If Not g_Logger Is Nothing Then Exit Sub
     Set g_Logger = New MyCompanyLogging.LoggingComBridge
 End Sub
 
-' This is the ONLY public entry point for accessing the logger.
-' All application code MUST use this function.
 Public Function Logger() As MyCompanyLogging.LoggingComBridge
-    ' Safety-net fallback in case InitializeLogging was not called.
-    If g_Logger Is Nothing Then
-        InitializeLogging
-    End If
-    ' Return the singleton instance.
+    If g_Logger Is Nothing Then InitializeLogging
     Set Logger = g_Logger
 End Function
 ```
 
 ### Step 3: Initialize the Logger on Startup
-Call the `InitializeLogging` sub from your application's main entry point (e.g., `Sub Main` or the `Form_Load` event of your startup form).
+Call `InitializeLogging` from your application's main entry point (e.g., `Sub Main` or the startup `Form_Load`).
 
 ```vb
-' In your application's startup Sub or Form
 Private Sub Form_Load()
-    ' Initialize the logger once when the application starts.
     InitializeLogging
-    
-    ' Now you can use the Logger() function anywhere in your application.
-    Logger.Info "frmMain", "Form_Load", "Application startup complete."
 End Sub
 ```
 
-## 2. How Correlation IDs Work
+## 2. Choosing Your Logging Pattern: Simple vs. Scoped (Traced)
 
-Our framework automatically adds several correlation IDs to your logs.
+The framework supports two distinct patterns. Choosing the right one is key to creating useful, understandable logs.
 
--   **`session.id` (The User Journey):** A unique ID is generated automatically the *very first time* the logging framework is initialized within a process. This ID is then stored in a machine-wide environment variable. Crucially, any **child processes** (other EXEs) launched by your application will automatically inherit this environment variable and therefore share the same `session.id`. This links the entire user journey together, even across multiple applications, for the lifetime of the initial parent process.
--   **`trace.id` & `transaction.id` & `span.id` (Logging Scopes):** As described in the Architectural Deep Dive, these IDs are used to group all logs related to a single operation. You create these scopes using the `BeginTrace` and `BeginSpan` methods.
+### Pattern 1: Simple Logging
+This is a single, "fire-and-forget" log message.
 
-## 3. Usage and Examples
+```vb
+' A simple log call
+Logger.Info "frmMain", "Form_Load", "Application startup complete."
+```
 
-### Using the Safe Accessor Function
-Always use the `Logger()` function from `modLogging.bas` to get the logger object. This guarantees your code will not crash even if initialization order is unexpected.
+-   **When to Use:** Only for static, one-off events that are not part of a user workflow. Good examples include:
+    -   Logging the application version at startup.
+    -   Logging that the application is shutting down.
+    -   Logging a loaded configuration value.
+-   **What You Get:** The log is correlated by `session.id`.
+-   **Limitation:** The log is **not** connected to any specific user action in the APM view. It's an isolated event.
+
+### Pattern 2: Scoped (Traced) Logging (BEST PRACTICE)
+This pattern wraps a unit of work inside a scope, correlating everything that happens within it.
+
+```vb
+' Create a logging scope
+Dim trace As MyCompanyLogging.ILoggingTransaction
+Set trace = Logger.BeginTrace("SaveCustomerClick", TxType_UserInteraction)
+
+' All logs inside this scope are now correlated
+Logger.Info "frmCustomer", "cmdSave_Click", "Save operation initiated."
+' ... more code and logs ...
+
+' End the scope
+Set trace = Nothing
+```
+
+-   **When to Use:** For **any and all user-initiated actions or business processes**. This should be your default choice.
+-   **What You Get:** Full correlation with `session.id`, `trace.id`, `transaction.id`, and `span.id`.
+-   **Benefit:** Creates a complete, step-by-step story of an operation that appears in the APM UI, making troubleshooting incredibly fast and effective.
+
+## 3. Detailed Example: Tracing a Unit of Work
+
+Always use the `Logger()` function from `modLogging.bas` to get the logger object. This guarantees your code will not crash.
 
 ```vb
 Public Sub cmdSave_Click()
     Dim trace As MyCompanyLogging.ILoggingTransaction
     On Error GoTo Handle_Error
     
-    ' Always use the Logger() function to start the trace
     Set trace = Logger.BeginTrace("SaveCustomerClick", TxType_UserInteraction)
     
     Logger.Info "frmCustomer", "cmdSave_Click", "Save operation initiated."
@@ -236,36 +384,30 @@ End Sub
 
 ---
 
-# .NET Logging - Usage and Examples
+# .NET Logging: Usage and Examples
 
 ## 1. Setup (One-Time Application Configuration)
 
 ### Step 1: Initialize the Framework
-In your application's main entry point (typically `Program.cs` for Console/WinForms or `Global.asax.cs` for web apps), add a single line to initialize the logging framework.
+In your application's `Program.cs`, add a single line to initialize the framework.
 
 ```csharp
-// In Program.cs or equivalent startup file
+// In Program.cs
 using MyCompany.Logging.Abstractions;
-using System;
-using System.Windows.Forms;
-
-static class Program
+// ...
+public static class Program
 {
     [STAThread]
     static void Main()
     {
-        // Initialize the logger once when the application starts.
         LogManager.Initialize(AppRuntime.DotNet);
-
-        Application.EnableVisualStyles();
-        Application.SetCompatibleTextRenderingDefault(false);
-        Application.Run(new Form1());
+        // ...
     }
 }
 ```
 
 ### Step 2: Getting a Logger Instance
-In any class where you need to log, get a logger instance. The best practice is to create a `private static readonly` field. This is highly efficient and the logger object is safe for reuse.
+In any class where you need to log, get a `private static readonly` logger instance.
 
 ```csharp
 // At the top of your class file
@@ -273,24 +415,146 @@ using MyCompany.Logging.Abstractions;
 
 public class MyService
 {
-    // Get a logger instance once per class.
     private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
-    
-    // ... now you can use _log in all methods of this class ...
+    // ...
 }
 ```
 
-## 2. How Correlation IDs Work
+## 2. Choosing Your Logging Pattern: Simple vs. Scoped (Traced)
 
--   **`session.id` (The User Journey):** A unique ID is generated automatically the *very first time* the logging framework is initialized. This ID is then stored in an environment variable for the lifetime of the process. Crucially, any **child processes** launched by your application will automatically inherit this ID, allowing you to trace a user's entire workflow across multiple executables.
--   **`trace.id`, `transaction.id`, `span.id` (Logging Scopes):** In .NET, these are managed by our framework's `ITracer` interface. You wrap your code in a `LogManager.Tracer.Trace` call, and the framework handles creating the scopes and correlating all logs within them.
+The framework supports two distinct patterns. Choosing the right one is key to creating useful, understandable logs.
 
-## 3. Usage and Examples
+### Pattern 1: Simple Logging
+This is a single, "fire-and-forget" log message.
 
-### Tracing a Unit of Work - BEST PRACTICE
-This is the standard, provider-agnostic pattern for tracing an operation in .NET.
-
+```csharp
+// A simple log call
+_log.Info("Application startup complete.");
 ```
+
+-   **When to Use:** Only for static, one-off events that are not part of a user workflow. Good examples include:
+    -   Logging the application version at startup.
+    -   Logging that the application is shutting down.
+-   **What You Get:** The log is correlated by `session.id`.
+-   **Limitation:** The log is
+
+---
+
+# VB6 Logging: Usage and Examples
+
+## 1. Setup (One-Time Project Configuration)
+To enable logging, you must perform the following **two mandatory steps**.
+
+### Step 1: Add the Type Library Reference
+1.  In the VB6 IDE, go to **Project -> References...**
+2.  Click **Browse...**, change the file type to **Type Libraries (*.olb, *.tlb)**.
+3.  Navigate to the build output folder (e.g., `bin\Debug`) and select **`MyCompany.Logging.tlb`**.
+4.  Click **Open**, then **OK**.
+
+### Step 2: Import the Global Logger Module
+1.  In the VB6 IDE, go to **Project -> Add Module** and choose the **Existing** tab.
+2.  Navigate to the central shared code location and select **`modLogging.bas`**. Click **Open**.
+
+The contents of `modLogging.bas`:
+```vb
+' In modLogging.bas
+Private g_Logger As MyCompanyLogging.LoggingComBridge
+
+Public Sub InitializeLogging()
+    If Not g_Logger Is Nothing Then Exit Sub
+    Set g_Logger = New MyCompanyLogging.LoggingComBridge
+End Sub
+
+Public Function Logger() As MyCompanyLogging.LoggingComBridge
+    If g_Logger Is Nothing Then
+        InitializeLogging
+    End If
+    Set Logger = g_Logger
+End Function
+```
+
+### Step 3: Initialize the Logger on Startup
+Call `InitializeLogging` from your application's main entry point (e.g., `Sub Main` or `Form_Load`).
+
+```vb
+' In your application's startup Sub
+Private Sub Form_Load()
+    InitializeLogging
+    ' This is a "Simple Log" - it has a session.id but no trace.
+    Logger.Info "frmMain", "Form_Load", "Application startup complete."
+End Sub
+```
+
+## 2. Usage Examples
+
+### Tracing a Unit of Work (Scoped Logging)
+This is the **best practice** for any significant user action.
+
+```vb
+Public Sub cmdSave_Click()
+    Dim trace As MyCompanyLogging.ILoggingTransaction
+    On Error GoTo Handle_Error
+    
+    ' Start a SCOPE for this entire operation.
+    Set trace = Logger.BeginTrace("SaveCustomerClick", TxType_UserInteraction)
+    
+    ' This log is now part of the trace.
+    Logger.Info "frmCustomer", "cmdSave_Click", "Save operation initiated."
+    
+    ' ... your business logic here ...
+
+Cleanup:
+    If Not trace Is Nothing Then Set trace = Nothing
+    Exit Sub
+    
+Handle_Error:
+    Logger.ErrorHandler "frmCustomer", "cmdSave_Click", "Failed to save customer.", _
+                         Err.Description, Err.Number, Err.Source, Erl
+    GoTo Cleanup
+End Sub
+```
+
+---
+
+# .NET Logging: Usage and Examples
+
+## 1. Setup (One-Time Application Configuration)
+
+### Step 1: Initialize the Framework
+In `Program.cs`, add the initialization call.
+```csharp
+// In Program.cs
+using MyCompany.Logging.Abstractions;
+// ...
+static class Program
+{
+    [STAThread]
+    static void Main()
+    {
+        LogManager.Initialize(AppRuntime.DotNet);
+        // ...
+    }
+}
+```
+
+### Step 2: Getting a Logger Instance
+In any class, create a `private static readonly` field for the logger.
+```csharp
+// At the top of your class file
+using MyCompany.Logging.Abstractions;
+
+public class MyService
+{
+    private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
+    // ...
+}
+```
+
+## 2. Usage Examples
+
+### Tracing a Unit of Work (Scoped Logging) - BEST PRACTICE
+
+```csharp
 using MyCompany.Logging.Abstractions;
 using System;
 
@@ -300,12 +564,12 @@ public class OrderProcessor
     
     public void FulfillOrder(int orderId)
     {
-        // Use the framework's tracer to capture this method as a single transaction.
+        // Use the framework's tracer to create a SCOPE for this operation.
         LogManager.Tracer.Trace("FulfillOrder", TxType.Process, () =>
         {
+            // All logs inside this lambda are automatically part of the trace.
             _log.Info("Fulfilling order {OrderId}", orderId);
             
-            // To create a child span, you simply nest another Trace call.
             LogManager.Tracer.Trace("NotifyShippingDept", TxType.Process, () =>
             {
                 _log.Debug("Calling shipping department API for order {OrderId}", orderId);
@@ -314,54 +578,25 @@ public class OrderProcessor
             _log.Info("Order {OrderId} fulfillment complete.", orderId);
         });
     }
-
-    public void HandleError()
-    {
-        try
-        {
-            throw new InvalidOperationException("Could not connect to warehouse inventory.");
-        }
-        catch (Exception ex)
-        {
-            // If this code is running inside a LogManager.Tracer.Trace scope,
-            // this error log will be automatically correlated with it.
-            _log.Error(ex, "An error occurred while handling inventory.");
-        }
-    }
 }
 ```
+
+### Advanced: Bridging VB6 and .NET Scopes
+This framework excels at creating a single, unified trace when a VB6 app calls a .NET component.
+
+1.  **VB6 Initiates the Trace:** The VB6 `cmd_Click` event calls `Logger.BeginTrace`.
+2.  **.NET Continues the Trace:** The .NET component it calls then uses `LogManager.Tracer.Trace`. The framework automatically detects the existing trace from VB6 and creates a *new transaction* within it, perfectly stitching the two parts of the operation together in the APM UI.
 
 ---
 
 # Post-Deployment Configuration & Analysis
 
 ## 1. Adjusting Log Levels with `nlog.config`
-The logging verbosity is controlled by the `<rules>` section in the `nlog.config` file, which is deployed alongside your application. This file can be edited on a server **without recompiling or redeploying the application**. Because `autoReload="true"` is set, NLog will automatically pick up the changes within a few seconds.
-
-### Default Configuration
-The default rule logs `Info` level and above for all loggers.
-```xml
-<rules>
-  <!-- DEFAULT PRODUCTION RULE -->
-  <logger name="*" minlevel="Info" writeTo="app-log-file" />
-</rules>
-```
-
-### How to Enable Debug Logging for a Specific Area
-To troubleshoot an issue, you can add a more specific rule **above** the default rule. The `final="true"` attribute is critical to prevent duplicate logging.
-
-**Scenario:** We need to enable `Trace` level logging for user `jdoe` but only when they are using the `frmOrders.frm` screen in `LegacyApp.exe`.
-
-1.  Open `nlog.config` on the server.
-2.  Add the following `<logger>` block inside the `<rules>` section, **before** the default rule.
+Logging verbosity is controlled by `nlog.config`. This file can be edited manually on a server for quick diagnostics, or managed centrally and deployed to the fleet via tools like Octopus Deploy. Because `autoReload="true"` is set, NLog will pick up changes without an application restart.
 
 ```xml
 <rules>
-  <!-- 
-    TEMPORARY DIAGNOSTIC RULE:
-    This rule enables TRACE logging only for user 'jdoe' when the logger name
-    starts with 'LegacyApp.exe.frmOrders.frm'.
-  -->
+  <!-- TEMPORARY DIAGNOSTIC RULE -->
   <logger name="LegacyApp.exe.frmOrders.frm.*" minlevel="Trace" writeTo="app-log-file" final="true">
     <filters>
       <when condition="equals('${windows-identity:domain=false}', 'jdoe', ignoreCase=true)" action="Log" />
@@ -373,35 +608,16 @@ To troubleshoot an issue, you can add a more specific rule **above** the default
 </rules>
 ```
 
-3.  Save the file. The new logging level will take effect almost immediately. Once you are done troubleshooting, simply remove the temporary rule block and save the file again.
-
 ## 2. Analyzing Logs in Kibana and Elastic
-
-All logs are enriched with correlation IDs, allowing for powerful analysis.
 
 **[Link to Enterprise Logging Dashboards](https://my-elastic-instance/kibana/app/dashboards)**
 
 ### Common Search Queries (KQL) in Kibana
 
--   **See a user's entire session from start to finish:**
-    `session.id: "a8c3e0b1f2d44e5f8a7b6c5d4e3f2a1b"`
+-   **See a user's entire session:** `session.id: "a8c3e0b1f2d44e5f8a7b6c5d4e3f2a1b"`
+-   **See a single traced operation:** `trace.id: "e4a9c8b7f6d5e4f3a2b1c0d9e8f7a6b5"`
+-   **Find all VB6 errors:** `log.level: error and labels.app_type: "VB6"`
+-   **Find a specific VB6 runtime error:** `vb_error.number: 76`
 
--   **See everything related to one specific operation (VB6 or .NET):**
-    `trace.id: "e4a9c8b7f6d5e4f3a2b1c0d9e8f7a6b5"`
-
--   **Find all errors from VB6 applications:**
-    `log.level: error and labels.app_type: "VB6"`
-
--   **Find a specific VB6 runtime error number:**
-    `vb_error.number: 76`
-
--   **Find all logs from a specific .NET service:**
-    `service.name: "MyCompany.PaymentService.exe"`
-
-### Using the APM UI in Kibana
-
-For operations traced with our framework's `LogManager.Tracer` or the VB6 `BeginTrace` method, you can use the APM UI:
-1.  Navigate to the **APM** section in Kibana.
-2.  Find your service (`MyCompany.PaymentService.exe` or `LegacyApp.exe`).
-3.  Click on a transaction (e.g., "FulfillOrder" or "SaveCustomerClick") to see the **transaction waterfall view**.
-4.  This view shows you the timing of all spans. At the bottom, there is a section for **"Logs"** which will show only the log messages correlated with that specific transaction. This is the fastest way to go from a performance problem to the logs that explain it.
+### Using the APM UI
+For any operation wrapped in a trace (`BeginTrace` or `Tracer.Trace`), you can use the APM UI in Kibana to see the transaction waterfall view. All correlated logs will appear automatically at the bottom of the trace view, providing a direct link from performance metrics to application logs.
