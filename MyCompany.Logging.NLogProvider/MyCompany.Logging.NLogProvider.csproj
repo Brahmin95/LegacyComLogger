@@ -156,5 +156,11 @@
     <None Include="app.config" />
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MyCompany.Logging\MyCompany.Logging.csproj">
+      <Project>{8dce40ff-efed-4cdd-adcf-32a89cc5c0cc}</Project>
+      <Name>MyCompany.Logging</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

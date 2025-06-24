@@ -164,6 +164,10 @@
       <Project>{13014b38-83be-44fb-bcbb-650bd31d3375}</Project>
       <Name>MyCompany.Logging.NLogProvider</Name>
     </ProjectReference>
+    <ProjectReference Include="..\MyCompany.Logging\MyCompany.Logging.csproj">
+      <Project>{8dce40ff-efed-4cdd-adcf-32a89cc5c0cc}</Project>
+      <Name>MyCompany.Logging</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <COMReference Include="Scripting">

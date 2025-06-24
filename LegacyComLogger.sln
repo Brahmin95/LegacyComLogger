@@ -19,6 +19,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deployment", "Deployment", 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentation", "{8608090D-3E5E-46FF-8B89-0A06F0F0388D}"
 	ProjectSection(SolutionItems) = preProject
+		docs\Solution Setup.md = docs\Solution Setup.md
 		Docs\wiki.md = Docs\wiki.md
 	EndProjectSection
 EndProject
@@ -36,6 +37,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{291A0DBD-F
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCompany.Logging", "MyCompany.Logging\MyCompany.Logging.csproj", "{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VB6", "VB6", "{8572B4AE-0B7A-4B85-BA33-EFAB28DA738B}"
+	ProjectSection(SolutionItems) = preProject
+		docs\modLogger.bas = docs\modLogger.bas
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -93,6 +99,7 @@ Global
 		{30C8E2B8-CEB8-45B5-8A51-79B1F9CF5B9E} = {A334F397-CE0E-47ED-8238-28D11F39FC10}
 		{8608090D-3E5E-46FF-8B89-0A06F0F0388D} = {A334F397-CE0E-47ED-8238-28D11F39FC10}
 		{3D7F9981-9B16-4A5A-BCB1-7810926E346C} = {A334F397-CE0E-47ED-8238-28D11F39FC10}
+		{8572B4AE-0B7A-4B85-BA33-EFAB28DA738B} = {A334F397-CE0E-47ED-8238-28D11F39FC10}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CEFECA41-E576-4860-8036-4A4A5A26BA64}
