@@ -36,6 +36,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VB6", "VB6", "{8572B4AE-0B7A-4B85-BA33-EFAB28DA738B}"
 	ProjectSection(SolutionItems) = preProject
 		docs\modLogger.bas = docs\modLogger.bas
+		MyVB6App.config = MyVB6App.config
 	EndProjectSection
 EndProject
 Global
