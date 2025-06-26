@@ -140,6 +140,7 @@ namespace MyCompany.Logging.Abstractions
                 _factory = (ILoggerFactory)Activator.CreateInstance(factoryType);
                 Tracer = (ITracer)Activator.CreateInstance(tracerType);
 
+                // This logic is preserved to set the context (service.name, etc.)
                 string methodName = environment == AppRuntime.Vb6 ? "ConfigureVb6Context" : "ConfigureDotNetContext";
                 var configureMethod = initializerType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
                 configureMethod?.Invoke(null, null);

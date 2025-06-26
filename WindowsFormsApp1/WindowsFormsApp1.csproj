@@ -186,7 +186,7 @@
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
     <None Include="app.config" />
-    <None Include="NLog.config">
+    <None Include="nlog.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="packages.config" />
@@ -201,10 +201,6 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\MyCompany.Logging.NLogProvider\MyCompany.Logging.NLogProvider.csproj">
-      <Project>{13014b38-83be-44fb-bcbb-650bd31d3375}</Project>
-      <Name>MyCompany.Logging.NLogProvider</Name>
-    </ProjectReference>
     <ProjectReference Include="..\MyCompany.Logging\MyCompany.Logging.csproj">
       <Project>{8dce40ff-efed-4cdd-adcf-32a89cc5c0cc}</Project>
       <Name>MyCompany.Logging</Name>
@@ -223,8 +219,8 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>
-    </PostBuildEvent>
+    <PostBuildEvent>REM This ensures the provider and its dependencies are available at runtime
+XCOPY "$(SolutionDir)MyCompany.Logging.NLogProvider\bin\$(ConfigurationName)\*.*" "$(TargetDir)" /Y /I /E</PostBuildEvent>
   </PropertyGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>

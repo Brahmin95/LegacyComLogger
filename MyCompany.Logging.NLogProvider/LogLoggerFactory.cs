@@ -1,6 +1,4 @@
 ﻿using MyCompany.Logging.Abstractions;
-using System.IO;
-using System.Reflection;
 
 namespace MyCompany.Logging.NLogProvider
 {
@@ -13,16 +11,10 @@ namespace MyCompany.Logging.NLogProvider
         /// <summary>
         /// Initializes a new instance of the NLogLoggerFactory class.
         /// It hooks into the LogManager to provide a way to push context properties
-        /// into NLog's global context and robustly loads NLog extensions.
+        /// into NLog's global context.
         /// </summary>
         public NLogLoggerFactory()
         {
-            // THE FIX: Explicitly tell NLog where to find its extension assemblies.
-            // This is critical for robust dependency loading when hosted by a native
-            // application like VB6, as the default probing paths can be unreliable.
-            var providerAssembly = typeof(NLogLoggerFactory).Assembly;
-            NLog.LogManager.AddHiddenAssembly(providerAssembly);
-
             // This delegate connects the abstract LogManager to the concrete NLog implementation.
             LogManager.SetContextProperty = (key, value) => NLog.GlobalDiagnosticsContext.Set(key, value);
         }
