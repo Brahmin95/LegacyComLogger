@@ -11,11 +11,13 @@
 
   <ItemGroup>
     <!-- NuGet dependencies -->
-    <PackageReference Include="Elastic.Apm" Version="1.25.0" />
-    <PackageReference Include="Elastic.CommonSchema.NLog" Version="8.6.0" />
-    <PackageReference Include="NLog" Version="4.7.15" />
 
     <!-- Explicitly reference the highest required version of this package -->
+    <PackageReference Include="Elastic.Apm" Version="1.18.0" />
+    <PackageReference Include="Elastic.CommonSchema.NLog" Version="8.6.0" />
+    <PackageReference Include="NLog" Version="4.7.15" />
+    <PackageReference Include="NLog.WindowsEventLog" Version="4.7.15" />
+    <PackageReference Include="NLog.WindowsIdentity" Version="4.7.15" />
     <PackageReference Include="System.Collections.Immutable" Version="5.0.0" />
   </ItemGroup>
 

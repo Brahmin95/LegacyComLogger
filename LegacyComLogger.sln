@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.33328.57
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCompany.Logging.NLogProvider", "MyCompany.Logging.NLogProvider\MyCompany.Logging.NLogProvider.csproj", "{13014B38-83BE-44FB-BCBB-650BD31D3375}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MyCompany.Logging.NLogProvider", "MyCompany.Logging.NLogProvider\MyCompany.Logging.NLogProvider.csproj", "{13014B38-83BE-44FB-BCBB-650BD31D3375}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCompany.Logging.Tests", "MyCompany.Logging.Tests\MyCompany.Logging.Tests.csproj", "{61F869FF-C378-42DE-B411-0F1CDF2F2E04}"
 EndProject
@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{A334F397-C
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deployment", "Deployment", "{30C8E2B8-CEB8-45B5-8A51-79B1F9CF5B9E}"
 	ProjectSection(SolutionItems) = preProject
+		docs\APMSystemVariables.ps1 = docs\APMSystemVariables.ps1
+		docs\APMSystemVariables.wix = docs\APMSystemVariables.wix
 		Docs\RegSvr32Wix.md = Docs\RegSvr32Wix.md
 		Docs\ScheduledTask.wxs = Docs\ScheduledTask.wxs
 	EndProjectSection
@@ -31,7 +33,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Maintenance", "Maintenance"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCompany.Logging.Benchmarks", "MyCompany.Logging.Benchmarks\MyCompany.Logging.Benchmarks.csproj", "{AAA1E50F-1491-4B3B-8BFE-2EE4396CC537}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCompany.Logging", "MyCompany.Logging\MyCompany.Logging.csproj", "{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MyCompany.Logging", "MyCompany.Logging\MyCompany.Logging.csproj", "{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VB6", "VB6", "{8572B4AE-0B7A-4B85-BA33-EFAB28DA738B}"
 	ProjectSection(SolutionItems) = preProject
@@ -49,12 +51,12 @@ Global
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{13014B38-83BE-44FB-BCBB-650BD31D3375}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{13014B38-83BE-44FB-BCBB-650BD31D3375}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{13014B38-83BE-44FB-BCBB-650BD31D3375}.Debug|x86.ActiveCfg = Debug|x86
-		{13014B38-83BE-44FB-BCBB-650BD31D3375}.Debug|x86.Build.0 = Debug|x86
+		{13014B38-83BE-44FB-BCBB-650BD31D3375}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{13014B38-83BE-44FB-BCBB-650BD31D3375}.Debug|x86.Build.0 = Debug|Any CPU
 		{13014B38-83BE-44FB-BCBB-650BD31D3375}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{13014B38-83BE-44FB-BCBB-650BD31D3375}.Release|Any CPU.Build.0 = Release|Any CPU
-		{13014B38-83BE-44FB-BCBB-650BD31D3375}.Release|x86.ActiveCfg = Release|x86
-		{13014B38-83BE-44FB-BCBB-650BD31D3375}.Release|x86.Build.0 = Release|x86
+		{13014B38-83BE-44FB-BCBB-650BD31D3375}.Release|x86.ActiveCfg = Release|Any CPU
+		{13014B38-83BE-44FB-BCBB-650BD31D3375}.Release|x86.Build.0 = Release|Any CPU
 		{61F869FF-C378-42DE-B411-0F1CDF2F2E04}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{61F869FF-C378-42DE-B411-0F1CDF2F2E04}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{61F869FF-C378-42DE-B411-0F1CDF2F2E04}.Debug|x86.ActiveCfg = Debug|x86
@@ -81,12 +83,12 @@ Global
 		{AAA1E50F-1491-4B3B-8BFE-2EE4396CC537}.Release|x86.Build.0 = Release|Any CPU
 		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Debug|x86.ActiveCfg = Debug|x86
-		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Debug|x86.Build.0 = Debug|x86
+		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Debug|x86.Build.0 = Debug|Any CPU
 		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Release|Any CPU.Build.0 = Release|Any CPU
-		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Release|x86.ActiveCfg = Release|x86
-		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Release|x86.Build.0 = Release|x86
+		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Release|x86.ActiveCfg = Release|Any CPU
+		{8DCE40FF-EFED-4CDD-ADCF-32A89CC5C0CC}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

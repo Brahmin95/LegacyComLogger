@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+  <Product Id="*" ...>
+
+    <!-- 
+		You will need to add the WixUtilExtension to your WiX project to use the util: namespace.
+		In your main .wxs file, add this to the top-level <Wix> element: xmlns:util="http://schemas.microsoft.com/wix/UtilExtension"
+		In your Visual Studio project, add a reference to WixUtilExtension.dll.
+		Copy the <Component> block below and place it inside the same <DirectoryRef> where you are installing your main application files.
+		Make sure you add a reference to this component's Id inside a <Feature> element.... 
+	-->
+
+    <Feature Id="ProductFeature" Title="My Legacy App" Level="1">
+      
+      <!-- ... other components like your EXE and DLLs ... -->
+
+      <!-- Add a reference to our new Environment component -->
+      <ComponentRef Id="ApmEnvironmentVariables" />
+
+    </Feature>
+    
+    <!-- ... -->
+    
+    <DirectoryRef Id="INSTALLFOLDER">
+
+      <!-- ... other <Component> elements for your files ... -->
+      
+      <!-- =================================================================== -->
+      <!-- == WiX Component for APM Environment Variables                   == -->
+      <!-- =================================================================== -->
+      <Component Id="ApmEnvironmentVariables" Guid="PUT-NEW-GUID-HERE-1">
+        
+        <!-- This component does not install any files, it only sets registry keys. -->
+        <!-- The 'util:Environment' element is the key. It safely creates/updates
+             the environment variables during installation and REMOVES them on uninstall. -->
+
+        <util:Environment
+            Id="SetApmServerUrl"
+            Name="ELASTIC_APM_SERVER_URL"
+            Value="http://my-apm-server:8200"
+            Permanent="no"
+            System="yes"
+            Action="set" />
+
+        <util:Environment
+            Id="SetApmSecretToken"
+            Name="ELASTIC_APM_SECRET_TOKEN"
+            Value="YourSecretTokenHere"
+            Permanent="no"
+            System="yes"
+            Action="set" />
+
+        <util:Environment
+            Id="SetApmEnvironment"
+            Name="ELASTIC_APM_ENVIRONMENT"
+            Value="production"
+            Permanent="no"
+            System="yes"
+            Action="set" />
+            
+      </Component>
+      
+    </DirectoryRef>
+    
+  </Product>
+</Wix>
