@@ -66,11 +66,11 @@
     <Reference Include="Elastic.Apm, Version=1.18.0.0, Culture=neutral, PublicKeyToken=ae7400d2c189cf22, processorArchitecture=MSIL">
       <HintPath>..\packages\Elastic.Apm.1.18.0\lib\net461\Elastic.Apm.dll</HintPath>
     </Reference>
-    <Reference Include="Elastic.CommonSchema, Version=8.0.0.0, Culture=neutral, PublicKeyToken=069ca2728db333c1, processorArchitecture=MSIL">
-      <HintPath>..\packages\Elastic.CommonSchema.8.6.0\lib\net461\Elastic.CommonSchema.dll</HintPath>
+    <Reference Include="Elastic.CommonSchema, Version=1.0.0.0, Culture=neutral, PublicKeyToken=069ca2728db333c1, processorArchitecture=MSIL">
+      <HintPath>..\packages\Elastic.CommonSchema.1.5.3\lib\net461\Elastic.CommonSchema.dll</HintPath>
     </Reference>
-    <Reference Include="Elastic.CommonSchema.NLog, Version=8.0.0.0, Culture=neutral, PublicKeyToken=069ca2728db333c1, processorArchitecture=MSIL">
-      <HintPath>..\packages\Elastic.CommonSchema.NLog.8.6.0\lib\net461\Elastic.CommonSchema.NLog.dll</HintPath>
+    <Reference Include="Elastic.CommonSchema.NLog, Version=1.0.0.0, Culture=neutral, PublicKeyToken=069ca2728db333c1, processorArchitecture=MSIL">
+      <HintPath>..\packages\Elastic.CommonSchema.NLog.1.5.3\lib\net461\Elastic.CommonSchema.NLog.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Bcl.AsyncInterfaces.8.0.0\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
@@ -167,7 +167,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Form1.cs" />
+    <Compile Include="Form1.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
@@ -187,7 +189,7 @@
     </Compile>
     <None Include="app.config" />
     <None Include="nlog.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
