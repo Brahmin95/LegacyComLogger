@@ -40,10 +40,10 @@ namespace MyCompany.Logging.Interop
 
         public LoggingComBridge()
         {
-            if (!LogManager.IsInitialized)
-            {
-                LogManager.Initialize(AppRuntime.Vb6);
-            }
+            // THE FIX: Unconditionally call Initialize with the VB6 environment.
+            // The refactored LogManager will now ensure the bootstrap runs only once,
+            // but will correctly set the context to VB6 every time this bridge is created.
+            LogManager.Initialize(AppRuntime.Vb6);
         }
 
         #region Public API

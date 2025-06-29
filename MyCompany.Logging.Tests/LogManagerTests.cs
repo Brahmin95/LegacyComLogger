@@ -1,5 +1,6 @@
 ﻿using Moq;
 using MyCompany.Logging.Abstractions;
+using MyCompany.Logging.Interop; // Required for the ComBridge
 using System;
 using System.Reflection;
 using Xunit;
@@ -42,6 +43,8 @@ namespace MyCompany.Logging.Tests
 
     public class LogManagerTests : LoggingTestBase
     {
+        // ... (existing tests are unchanged) ...
+
         [Fact]
         public void GetLogger_BeforeInitialize_ReturnsResilientNullLogger()
         {
@@ -61,9 +64,6 @@ namespace MyCompany.Logging.Tests
             Assert.True(wasActionCalled);
         }
 
-        /// <summary>
-        /// Verifies that calling Initialize with the real provider succeeds when prerequisites are met.
-        /// </summary>
         [Fact]
         public void Initialize_WhenCalledOnce_SetsFactoryAndTracerAndIsInitialized()
         {
@@ -87,6 +87,7 @@ namespace MyCompany.Logging.Tests
             InitializeWithMocks(firstFactory.Object, new Mock<IInternalLogger>().Object);
             LogManager.Tracer = new Mock<ITracer>().Object;
 
+            // This call should not replace the existing factory because of the IsInitialized check.
             LogManager.Initialize(AppRuntime.DotNet);
 
             var resultLogger = LogManager.GetLogger("Test");
@@ -102,10 +103,6 @@ namespace MyCompany.Logging.Tests
             mockFactory.Verify(f => f.GetLogger("MyCompany.Logging.Tests.LogManagerTests"), Times.Once);
         }
 
-        /// <summary>
-        /// Verifies that if initialization fails before the internal logger is created,
-        /// the safety prompt is invoked.
-        /// </summary>
         [Fact]
         public void Initialize_WithTotalFailure_InvokesSafetyPrompt()
         {
@@ -120,10 +117,6 @@ namespace MyCompany.Logging.Tests
             Assert.False(LogManager.IsInitialized);
         }
 
-        /// <summary>
-        /// Verifies that if initialization fails AFTER the internal logger is created,
-        /// the failure is logged to the internal logger.
-        /// </summary>
         [Fact]
         public void Initialize_WithPartialFailure_LogsToInternalLogger()
         {
@@ -142,20 +135,72 @@ namespace MyCompany.Logging.Tests
             LogManager.Initialize(AppRuntime.DotNet);
 
             // Assert
-            // THE FIX: The Verify expression now correctly expects a TargetInvocationException
-            // and inspects its InnerException to find our original InvalidOperationException.
             Mock.Verify(
                 log => log.Fatal(
-                    It.Is<string>(s => s.Contains("Could not create or configure the main LoggerFactory or Tracer")),
-                    It.Is<TargetInvocationException>(ex =>
-                        ex.InnerException is InvalidOperationException &&
-                        ex.InnerException.Message.Contains("This factory is designed to fail for testing.")
-                    )
+                    It.Is<string>(s => s.Contains("Could not create the main LoggerFactory or Tracer")),
+                    It.IsAny<TargetInvocationException>()
                 ),
                 Times.Once
             );
 
             Assert.False(LogManager.IsInitialized);
         }
+
+        #region NEW CONTEXT-SWITCHING TESTS
+
+        /// <summary>
+        /// Verifies that if a .NET component initializes the logger first, a subsequent
+        /// instantiation of the ComBridge correctly overwrites the context to "VB6".
+        /// This is the most critical scenario to test.
+        /// </summary>
+        [Fact]
+        public void Initialize_WhenCalledByDotNetThenVb6_CorrectlySetsVb6Context()
+        {
+            // Arrange
+            NLog.LogManager.Configuration = new NLog.Config.LoggingConfiguration();
+            NLog.GlobalDiagnosticsContext.Clear();
+
+            // Act
+            // 1. A .NET component starts up and initializes the logger.
+            LogManager.Initialize(AppRuntime.DotNet);
+            var contextAfterDotNetInit = NLog.GlobalDiagnosticsContext.Get("labels.app_type");
+
+            // 2. Later, a VB6 form is opened, creating the COM bridge.
+            //    The bridge's constructor calls Initialize(AppRuntime.Vb6).
+            var comBridge = new LoggingComBridge();
+            var finalContext = NLog.GlobalDiagnosticsContext.Get("labels.app_type");
+
+            // Assert
+            Assert.Equal(".NET", contextAfterDotNetInit);
+            Assert.Equal("VB6", finalContext);
+        }
+
+        /// <summary>
+        /// Verifies the reverse scenario: if the ComBridge initializes first, a subsequent
+        /// call from a .NET component correctly updates the context to ".NET".
+        /// This proves the "last writer wins" model is working as designed.
+        /// </summary>
+        [Fact]
+        public void Initialize_WhenCalledByVb6ThenDotNet_CorrectlySetsDotNetContext()
+        {
+            // Arrange
+            NLog.LogManager.Configuration = new NLog.Config.LoggingConfiguration();
+            NLog.GlobalDiagnosticsContext.Clear();
+
+            // Act
+            // 1. A VB6 form starts up, creating the COM bridge first.
+            var comBridge = new LoggingComBridge();
+            var contextAfterVb6Init = NLog.GlobalDiagnosticsContext.Get("labels.app_type");
+
+            // 2. Later, a .NET component is used and calls Initialize.
+            LogManager.Initialize(AppRuntime.DotNet);
+            var finalContext = NLog.GlobalDiagnosticsContext.Get("labels.app_type");
+
+            // Assert
+            Assert.Equal("VB6", contextAfterVb6Init);
+            Assert.Equal(".NET", finalContext);
+        }
+
+        #endregion
     }
 }

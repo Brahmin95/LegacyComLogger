@@ -42,6 +42,7 @@ namespace MyCompany.Logging.Abstractions
         private static ILoggerFactory _factory;
         private static readonly object _initializationLock = new object();
         private static readonly ConcurrentDictionary<string, object> _contextCache = new ConcurrentDictionary<string, object>();
+        private static Assembly _providerAssembly;
 
         /// <summary>
         /// Initializes static members of the LogManager class.
@@ -85,21 +86,31 @@ namespace MyCompany.Logging.Abstractions
         public static Action<string, object> SetContextProperty { get; set; } = (key, value) => { };
 
         /// <summary>
-        /// Initializes the entire logging system by loading the configured provider assembly.
-        /// This is the primary entry point for any application using the framework.
-        /// The call is idempotent; subsequent calls after a successful initialization will do nothing.
+        /// Initializes the logging system. This method handles the one-time bootstrap
+        /// and configures the context for the specified runtime environment.
+        /// It is safe to call multiple times; the expensive bootstrap runs only once,
+        /// but the context will be updated on each call to ensure it is correct.
         /// </summary>
         /// <param name="environment">The type of application runtime (DotNet or Vb6).</param>
         public static void Initialize(AppRuntime environment)
         {
             try
             {
-                if (IsInitialized) return;
-                lock (_initializationLock)
+                // The expensive, one-time-only bootstrap is protected by a lock.
+                if (!IsInitialized)
                 {
-                    if (IsInitialized) return;
-                    PerformInitialization(environment);
+                    lock (_initializationLock)
+                    {
+                        if (!IsInitialized)
+                        {
+                            BootstrapProvider();
+                        }
+                    }
                 }
+
+                // The lightweight context configuration now runs every time Initialize is called.
+                // This allows the ComBridge to "correct" the context from .NET to VB6 if needed.
+                ConfigureContext(environment);
             }
             catch (Exception ex)
             {
@@ -121,16 +132,14 @@ namespace MyCompany.Logging.Abstractions
         }
 
         /// <summary>
-        /// The core logic for loading the provider assembly and instantiating its components.
-        /// This is internal so it can be called directly by unit tests for failure simulation.
+        /// Performs the expensive, one-time-only loading of the provider and instantiation of components.
         /// </summary>
-        internal static void PerformInitialization(AppRuntime environment)
+        private static void BootstrapProvider()
         {
-            var assembly = Assembly.Load(ProviderAssemblyName);
-            var internalLoggerType = assembly.GetType(InternalLoggerFullTypeName, throwOnError: true);
-            var factoryType = assembly.GetType(FactoryFullTypeName, throwOnError: true);
-            var initializerType = assembly.GetType(InitializerFullTypeName, throwOnError: true);
-            var tracerType = assembly.GetType(TracerFullTypeName, throwOnError: true);
+            _providerAssembly = Assembly.Load(ProviderAssemblyName);
+            var internalLoggerType = _providerAssembly.GetType(InternalLoggerFullTypeName, throwOnError: true);
+            var factoryType = _providerAssembly.GetType(FactoryFullTypeName, throwOnError: true);
+            var tracerType = _providerAssembly.GetType(TracerFullTypeName, throwOnError: true);
 
             InternalLogger = (IInternalLogger)Activator.CreateInstance(internalLoggerType);
             InternalLogger.Info("Internal logger bootstrapped successfully.");
@@ -139,18 +148,28 @@ namespace MyCompany.Logging.Abstractions
             {
                 _factory = (ILoggerFactory)Activator.CreateInstance(factoryType);
                 Tracer = (ITracer)Activator.CreateInstance(tracerType);
-
-                string methodName = environment == AppRuntime.Vb6 ? "ConfigureVb6Context" : "ConfigureDotNetContext";
-                var configureMethod = initializerType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
-                configureMethod?.Invoke(null, null);
-
-                InternalLogger.Info($"Main logging factory and tracer initialized successfully for '{environment}' environment.");
             }
             catch (Exception ex)
             {
-                InternalLogger.Fatal("FATAL BOOTSTRAP ERROR: Could not create or configure the main LoggerFactory or Tracer.", ex);
+                InternalLogger.Fatal("FATAL BOOTSTRAP ERROR: Could not create the main LoggerFactory or Tracer.", ex);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Configures the logging context based on the specified runtime environment.
+        /// This method is lightweight and safe to call multiple times.
+        /// </summary>
+        private static void ConfigureContext(AppRuntime environment)
+        {
+            if (!IsInitialized) return; // Cannot configure context before bootstrap
+
+            var initializerType = _providerAssembly.GetType(InitializerFullTypeName, throwOnError: true);
+            string methodName = environment == AppRuntime.Vb6 ? "ConfigureVb6Context" : "ConfigureDotNetContext";
+            var configureMethod = initializerType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
+            configureMethod?.Invoke(null, null);
+
+            InternalLogger.Info($"Logging context configured for '{environment}' environment.");
         }
 
         public static void SetAbstractedContextProperty(string key, object value)
