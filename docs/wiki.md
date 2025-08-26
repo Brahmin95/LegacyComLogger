@@ -88,7 +88,7 @@ This is for grouping all events related to a single, complete operation. This pa
 
 ---
 
-# Architectural Deep Dive
+# Architecture Design Principles
 
 ## 1. Guiding Principles & Components
 The framework's architecture was guided by three core principles: Loose Coupling, Resilience, and Separation of Concerns.
@@ -169,6 +169,46 @@ The framework anticipates several failure modes and handles each one gracefully,
 | **Ultimate Fallback** | **Null Logger** | (For Application Stability) If *any* stage of initialization fails, the `LogManager` returns a `NullLogger` instance. This object implements the `ILogger` interface but all its methods are empty. This guarantees that calls like `_log.Info(...)` throughout the application do not throw a `NullReferenceException` and the application continues to execute seamlessly, albeit without generating logs. |
 
 This comprehensive strategy ensures that from an administrator's perspective, there is always a diagnostic trail, and from the user's perspective, the application remains usable no matter what state the logging system is in.
+
+## 5. Performance as a Feature
+
+In a high-concurrency Citrix environment, a logging framework must be a "good corporate citizen." **This principle extends beyond application responsiveness to include the mindful consumption of all shared server resources—CPU cycles, memory, and especially disk I/O. The design considers the entire logging pipeline, from the efficiency of file writes on the server to the downstream resource cost of the Filebeat agent harvesting those logs. The goal is to ensure the framework's operational footprint remains minimal, predictable, and non-disruptive to other services.**
+
+### Benchmarking Critical Paths
+
+To guarantee a low-overhead implementation, key performance-sensitive code paths are benchmarked using **BenchmarkDotNet**. This practice moves performance from a subjective goal to a measurable metric. Areas under scrutiny include:
+
+*   **Logger Instantiation:** The cost of calling `LogManager.GetLogger()` for the first time and for subsequent calls.
+*   **Log Call Overhead:** The time taken for a simple `Info()` call versus a call with complex, structured properties.
+*   **COM Data Marshalling:** The performance of the `ComBridge` when converting `Scripting.Dictionary` objects and invoking the "best-effort" `ToLogString()` on VB6 objects.
+
+These benchmarks are run as part of the development cycle to prevent performance regressions and validate design choices, ensuring that even verbose logging has a negligible impact on the application's responsiveness.
+
+### Designed for Contention
+
+The NLog provider is explicitly configured for the multi-process, multi-user Citrix environment:
+
+*   **`concurrentWrites="true"`**: This setting allows multiple processes on the same server to safely write to the same log file without causing file locks.
+*   **`keepFileOpen="false"`**: While slightly reducing performance for a single process, this setting is critical in a shared environment. It prevents a process from holding a long-lived handle to a log file, which significantly reduces the risk of file contention and improves overall system stability.
+
+This configuration prioritizes system-wide reliability over single-process optimization, which is the correct trade-off for the target environment.
+
+---
+
+## 6. Dynamic Configuration and Control
+
+Diagnosing issues in a production environment with over 1,500 concurrent users requires the ability to adjust logging verbosity on the fly. The framework is designed to provide this control without requiring application restarts or impacting users who are not being investigated.
+
+### Runtime Log Level Adaptation
+
+The NLog provider is configured with `autoReload="true"` in the `NLog.config` file. This instructs NLog to monitor the configuration file for changes and automatically apply them in real-time. This enables powerful, multi-level diagnostic control:
+
+*   **Fleet-Wide:** A standard `NLog.config` can be pushed using a tool like **Octopus Deploy** to set a baseline logging level for all ~100 servers.
+*   **Per-Machine:** For a server-specific issue, an administrator can **customize the config file locally on that one machine** for immediate, targeted diagnostics. Alternatively, Octopus Deploy can target a single server to apply a more verbose logging configuration.
+*   **Per-User (Advanced):** NLog’s powerful filtering rules can be used within a single config file to enable `Trace`-level logging for a specific username (e.g., `when='${gdc:item=username} == "jdoe"'`), providing hyper-granular diagnostics without affecting other users on the same server.
+
+**Crucially, this dynamic capability does not compromise stability. If a faulty `NLog.config` is deployed—either manually or across the fleet—the framework's resilience architecture (detailed in Section 4) ensures the application remains unaffected.** The `LogManager` will catch the configuration error, log the details to the internal logger and Windows Event Log, and revert to the safe `NullLogger`, preventing any disruption to the end-user's workflow.
+
 
 ---
 
